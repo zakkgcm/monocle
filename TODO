@@ -3,4 +3,5 @@
 2. make animooshuns work
 3. make scaling non-blocking (asynchronous)
 4. little details like file-opening and scrollbars
+5. make code less hackish
 
