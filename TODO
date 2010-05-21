@@ -1,0 +1,6 @@
+/* THIS IS A TODO FILE, YOU PUT THINGS THAT NEED TO BE DONE HERE*/
+1. General code cleanup
+2. make animooshuns work
+3. make scaling non-blocking (asynchronous)
+4. little details like file-opening and scrollbars
+
