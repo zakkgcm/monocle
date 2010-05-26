@@ -76,7 +76,7 @@ int main (int argc, char *argv[]){
             case 's':
                 if(strcmp(optarg, "fit"))
                     scale = 0;
-                else if(optarg > 0) /* what */    
+                else if((float)atof(optarg) > 0.0) 
                     scale = (float)atof(optarg);
 
                 printf("Setting scale to %.1f\n", scale);
