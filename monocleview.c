@@ -95,7 +95,7 @@ monocle_view_scale_image( MonocleView *self, gfloat scale ){
         return;
 
     g_object_unref(priv->img);
-    priv->img = gdk_pixbuf_scale_simple(priv->oimg, swidth, sheight, GDK_INTERP_BILINEAR);
+    priv->img = gdk_pixbuf_scale_simple(priv->oimg, swidth, sheight, GDK_INTERP_BILINEAR); /* make asynchronous */
 
     redraw_image(self, 0, 0, -1, -1);
 }
@@ -183,13 +183,14 @@ cb_advance_anim( MonocleView *self ){
     priv->oimg  = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter); /* I know the docs say to copy this but that mem leaks */
     priv->img   = g_object_ref(priv->oimg);
 
-    monocle_view_scale_image(self, priv->scale); /* Ugly flashing */
+    monocle_view_scale_image(self, priv->scale);
 
     g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
 
     return FALSE;
 }
 
+/* Specify -1 for width/height to use the pixbuf's width/height (ala gdk_draw_pixbuf) */
 static void
 redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     GtkWidget *widget        = GTK_WIDGET(self);
@@ -206,8 +207,12 @@ redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     region.width  = (width == -1) ? pregion.width: width;    
     region.height = (height == -1) ? pregion.height: height;
     
+    /* Only draw parts of the pixbuf that actually exist */
     gdk_rectangle_intersect(&region, &pregion, &region);
-    gdk_window_clear_area(widget->window, region.x, region.y, region.width, region.height); /* fixme */
+
+    /* change the size of the widget to the size of the pixbuf if we're asked to redraw it completely */
+    if(width == -1 || height == -1)
+        gtk_widget_set_size_request(widget, pregion.width, pregion.height);
     
     gdk_draw_pixbuf(widget->window, widget->style->white_gc, priv->img, 
                         region.x, region.y, region.x, region.y, region.width, region.height,

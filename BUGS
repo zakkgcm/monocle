@@ -5,5 +5,6 @@ f = fixed
     hardly a problem since you'd never scale a gif to 5000x5000 too often
 [ ] gif loading is horrifically slow, problem is gif_main_loop (), takes forever to run for some reason
     only happens with big hueg gifs though.
-[ ] ugly spastic blank flashing when redrawing the image, very evident in gifs
-[ ] leftovers of the image when scaling down without touching the window
+[f] ugly spastic blank flashing when redrawing the image, very evident in gifs
+[f] leftovers of the image when scaling down without touching the window
+[ ] leftovers present with transparent gifs as they animate

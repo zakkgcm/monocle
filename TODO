@@ -6,4 +6,5 @@
 5. make code less hackish
 6. Add film-roll like image selector
 7. Add Zoom-in-to-fit and Zoom-out-to-fit
+8. Add a customizable background to be used for transparent images (checkerboard, black, white)
 
