@@ -38,15 +38,12 @@ static void
 monocle_view_init( MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
 
-    priv->loader     = gdk_pixbuf_loader_new();
+    priv->loader     = NULL;
     priv->oimg       = NULL;
     priv->img        = NULL;
     priv->scale      = 0;
     priv->monitor_id = 0;
     priv->isanimated = FALSE;
-    g_signal_connect_object(G_OBJECT(priv->loader), "area-prepared", G_CALLBACK(cb_loader_area_prepared), self, 0);
-    g_signal_connect_object(G_OBJECT(priv->loader), "area-updated",  G_CALLBACK(cb_loader_area_updated), self, 0);
-    g_signal_connect_object(G_OBJECT(priv->loader), "closed",        G_CALLBACK(cb_loader_closed), self, 0);
 }
 
 static void
@@ -63,13 +60,41 @@ monocle_view_class_init (MonocleViewClass *klass){
 void
 monocle_view_set_image(MonocleView *self, gchar *filename){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
+    GtkWidget *widget        = GTK_WIDGET(self);
     
+    priv->loader = gdk_pixbuf_loader_new();
+    g_signal_connect_object(G_OBJECT(priv->loader), "area-prepared", G_CALLBACK(cb_loader_area_prepared), self, 0);
+    g_signal_connect_object(G_OBJECT(priv->loader), "area-updated",  G_CALLBACK(cb_loader_area_updated), self, 0);
+    g_signal_connect_object(G_OBJECT(priv->loader), "closed",        G_CALLBACK(cb_loader_closed), self, 0);
+
     if((priv->io = g_io_channel_new_file(filename, "r", NULL)) == NULL)
         return;
    
     g_io_channel_set_encoding(priv->io, NULL, NULL);
     priv->monitor_id = g_idle_add((GSourceFunc)write_image_buf, self);
+    
+    /* This is ugly, maybe make a small wrapper that checks for this */
+    /* doing this causes bugs but it'd be nice to clear out these objects */
+    /* Is this even proper? to unref and NULL out? seems really ugly */
+    if(priv->oimg){
+        g_object_unref(priv->oimg);
+        priv->oimg = NULL;
+    }
+    if(priv->img){
+        g_object_unref(priv->img);
+        priv->img = NULL;
+    }
+    if(priv->anim){
+        g_object_unref(priv->anim);
+        priv->anim = NULL;
+    }
+    if(priv->iter){
+        g_object_unref(priv->iter);
+        priv->iter = NULL;
+    }
+    priv->isanimated = FALSE;
 
+    gdk_window_clear(widget->window);
 }
 
 void
@@ -103,11 +128,9 @@ monocle_view_scale_image( MonocleView *self, gfloat scale ){
 static gboolean
 monocle_view_expose( GtkWidget *widget, GdkEventExpose *event ){
     MonocleView        *self = MONOCLE_VIEW(widget);
-    MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     GdkRectangle       area = event->area;
 
-    if(priv->img)
-        redraw_image(self, area.x, area.y, area.width, area.height);
+    redraw_image(self, area.x, area.y, area.width, area.height);
 
     return FALSE;
 }
@@ -156,7 +179,7 @@ cb_loader_area_updated( GdkPixbufLoader *loader, gint x, gint y, gint width, gin
 
      priv->oimg = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter);
      g_object_ref(priv->oimg);
-     priv->img =  g_object_ref(priv->oimg);
+     priv->img  = g_object_ref(priv->oimg);
 
      redraw_image(self, x, y, width, height);
 }
@@ -171,6 +194,7 @@ cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
         g_object_unref(priv->iter);
         g_object_unref(priv->anim);
     }
+    g_object_unref(priv->loader);
 }
 
 static gboolean
@@ -197,6 +221,9 @@ redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     GdkRectangle region, pregion;
     
+    if(!priv->img || !priv->oimg)
+        return;
+
     pregion.x = 0;
     pregion.y = 0;
     pregion.width = gdk_pixbuf_get_width(priv->img);
@@ -210,10 +237,18 @@ redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     /* Only draw parts of the pixbuf that actually exist */
     gdk_rectangle_intersect(&region, &pregion, &region);
 
-    /* change the size of the widget to the size of the pixbuf if we're asked to redraw it completely */
-    if(width == -1 || height == -1)
-        gtk_widget_set_size_request(widget, pregion.width, pregion.height);
-    
+    /* change the size of the widget to the size of the pixbuf where it is inside the window if we're asked to redraw it completely */
+    if(width == -1 || height == -1){
+        GdkRectangle cregion;
+        cregion.x = 0;
+        cregion.y = 0;
+        cregion.width  = widget->allocation.width;
+        cregion.height = widget->allocation.height;
+        gdk_rectangle_intersect(&cregion, &pregion, &cregion);
+
+        gtk_widget_set_size_request(widget, cregion.width, cregion.height);
+    }
+
     gdk_draw_pixbuf(widget->window, widget->style->white_gc, priv->img, 
                         region.x, region.y, region.x, region.y, region.width, region.height,
                         GDK_RGB_DITHER_NONE,

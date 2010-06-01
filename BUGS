@@ -8,3 +8,5 @@ f = fixed
 [f] ugly spastic blank flashing when redrawing the image, very evident in gifs
 [f] leftovers of the image when scaling down without touching the window
 [ ] leftovers present with transparent gifs as they animate
+[ ] images do not scale while or immediately after loading
+[ ] juggling with references, causing some strange errors

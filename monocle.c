@@ -9,6 +9,7 @@
 #include "monocleview.h"
 
 MonocleView *image;
+GtkWidget *window;
 
 static GtkWidget 
 *create_menubar( GtkWidget *window, GtkItemFactoryEntry *menu_items, gint nmenu_items ){
@@ -21,8 +22,27 @@ static GtkWidget
     return gtk_item_factory_get_widget(item_factory, "<main>");
 }
 
+void cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+    GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
+                                GTK_FILE_CHOOSER_ACTION_OPEN,
+                                GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+				                GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+				                NULL);
+    gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
+
+    if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT){ 
+        char *file;
+        file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (chooser));
+        monocle_view_set_image(image, file);
+        g_free (file);
+    }
+    gtk_widget_destroy (chooser);
+    
+    return;
+}
+
 /* Menu callbacks */
-void scale_image_cb (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     gfloat scale;
     switch(callback_action) {
         case 0:
@@ -64,22 +84,26 @@ void usage (){
             
 
 int main (int argc, char *argv[]){
-    GtkWidget *window, *vbox, *menubar;
+    GtkWidget *vbox, *menubar;
     float scale = 0;
 
     int optc;
-    while((optc = getopt(argc, argv, "Rs:")) != EOF)
+    extern char *optarg;
+    while((optc = getopt(argc, argv, "R:s:")) != EOF)
         switch(optc) {
             case 'R':
                 printf("Loading files from %s recursively\n", optarg);
                 break;
             case 's':
-                if(strcmp(optarg, "fit"))
+                if(!strcmp(optarg, "fit")){
                     scale = 0;
-                else if((float)atof(optarg) > 0.0) 
-                    scale = (float)atof(optarg);
-
-                printf("Setting scale to %.1f\n", scale);
+                    printf("Setting scale to fit to window\n");
+                }else if(atof(optarg) > 0){ 
+                    scale = atof(optarg);
+                    printf("Setting scale to %.1f\n", scale);
+                }else{
+                    printf("Unknown scale %s, defaulting to fit to window\n", optarg);
+                }
                 break;
             default:
                 usage();
@@ -103,8 +127,9 @@ int main (int argc, char *argv[]){
     gtk_box_pack_end(GTK_BOX (vbox), GTK_WIDGET(image), TRUE, TRUE, 0);
 
     gtk_widget_show_all(window);
-    
-    monocle_view_set_image(image, argv[1]);
+   
+    if(argc > 1)
+        monocle_view_set_image(image, argv[1]);
     /* Run Gtk */
     gtk_main();
     
