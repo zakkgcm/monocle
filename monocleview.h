@@ -17,16 +17,17 @@ typedef struct _MonocleView         MonocleView;
 typedef struct _MonocleViewClass    MonocleViewClass;
 
 struct _MonocleView {
-    GtkDrawingArea widget;
+    GtkLayout widget;
 };
 
 struct _MonocleViewClass {
-    GtkDrawingAreaClass parent_class;
+    GtkLayoutClass parent_class;
 };
 
 GType monocle_view_get_type (void);
 
 void monocle_view_set_image (MonocleView *self, gchar *filename);
+void monocle_view_set_scale (MonocleView *self, gfloat scale);
 void monocle_view_scale_image (MonocleView *self, gfloat scale);
 #endif /*__MONOCLE_VIEW_H__*/
 

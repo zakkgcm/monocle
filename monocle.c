@@ -74,7 +74,7 @@ void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *m
 void usage (){
     fprintf(stderr,
             "usage: %s [args] [imagefile]\n"
-            "\t-R [directory]   Recursively load files from a directory\n"
+            "\t-R [directory]   Recursively load files from a directory (defunct)\n"
             "\t-s [scale]       Set the initial scale, 'fit' or 0 for fit to window (default)\n"
             "\t-h               Show this help message\n",
             __progname
@@ -84,7 +84,7 @@ void usage (){
             
 
 int main (int argc, char *argv[]){
-    GtkWidget *vbox, *menubar;
+    GtkWidget *vbox, *menubar, *scrolledwin;
     float scale = 0;
 
     int optc;
@@ -109,7 +109,7 @@ int main (int argc, char *argv[]){
                 usage();
                 exit(EXIT_FAILURE);
         }
-    
+
     /* Gtk Setup */
     gtk_init(&argc, &argv);
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -122,14 +122,20 @@ int main (int argc, char *argv[]){
     
     menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));
     image = g_object_new(MONOCLE_TYPE_VIEW, NULL);
+    monocle_view_set_scale(image, scale);
 
+    scrolledwin = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(scrolledwin), GTK_WIDGET(image));
+    
     gtk_box_pack_start(GTK_BOX (vbox), menubar, FALSE, TRUE, 0);
-    gtk_box_pack_end(GTK_BOX (vbox), GTK_WIDGET(image), TRUE, TRUE, 0);
+    gtk_box_pack_end(GTK_BOX (vbox), GTK_WIDGET(scrolledwin), TRUE, TRUE, 0);
 
     gtk_widget_show_all(window);
    
     if(argc > 1)
-        monocle_view_set_image(image, argv[1]);
+        monocle_view_set_image(image, argv[argc-1]);
+
     /* Run Gtk */
     gtk_main();
     

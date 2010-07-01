@@ -1,6 +1,6 @@
 #include "monocleview.h"
 
-#define BUFSIZE 4086
+#define BUFSIZE 4096
 #define MONOCLE_VIEW_GET_PRIVATE(obj) (G_TYPE_INSTANCE_GET_PRIVATE ((obj), MONOCLE_TYPE_VIEW, MonocleViewPrivate))
 
 enum {
@@ -23,7 +23,7 @@ typedef struct _MonocleViewPrivate {
 
 /* The idea is store the original image on load in oimg, never modify it, scale and mangle img as much as you want, use it to redraw to the screen */
 
-G_DEFINE_TYPE(MonocleView, monocle_view, GTK_TYPE_DRAWING_AREA)
+G_DEFINE_TYPE(MonocleView, monocle_view, GTK_TYPE_LAYOUT)
 
 static gboolean monocle_view_expose     (GtkWidget *widget, GdkEventExpose *event);
 static gboolean monocle_view_configure  (GtkWidget *widget, GdkEventConfigure *event);
@@ -44,6 +44,8 @@ monocle_view_init( MonocleView *self ){
     priv->scale      = 0;
     priv->monitor_id = 0;
     priv->isanimated = FALSE;
+
+    /* g_signal_connect(G_OBJECT(GTK_LAYOUT(self)), "configure-event", G_CALLBACK(monocle_view_configure), NULL);  doesn't work */
 }
 
 static void
@@ -52,7 +54,7 @@ monocle_view_class_init (MonocleViewClass *klass){
     GtkWidgetClass *w_class = GTK_WIDGET_CLASS(klass);
 
     w_class->expose_event    = monocle_view_expose;
-    w_class->configure_event = monocle_view_configure;
+    /*class->configure_event = monocle_view_configure; gtklayout cannot configure event*/ 
 
     g_type_class_add_private(klass, sizeof(MonocleViewPrivate));
 }
@@ -62,6 +64,26 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     GtkWidget *widget        = GTK_WIDGET(self);
     
+    /* Kind of gross looking but a wrapper seems unnecessary */
+    if(priv->img != NULL){
+        g_object_unref(priv->img);
+        priv->img = NULL;
+    }
+    if(priv->oimg != NULL){
+        g_object_unref(priv->oimg);
+        priv->oimg = NULL;
+    }
+    if(priv->anim != NULL){
+        g_object_unref(priv->anim);
+        priv->anim = NULL;
+    }
+    if(priv->iter != NULL){
+        g_object_unref(priv->iter);
+        priv->iter = NULL;
+    }
+    
+    priv->isanimated = FALSE;
+
     priv->loader = gdk_pixbuf_loader_new();
     g_signal_connect_object(G_OBJECT(priv->loader), "area-prepared", G_CALLBACK(cb_loader_area_prepared), self, 0);
     g_signal_connect_object(G_OBJECT(priv->loader), "area-updated",  G_CALLBACK(cb_loader_area_updated), self, 0);
@@ -73,34 +95,21 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     g_io_channel_set_encoding(priv->io, NULL, NULL);
     priv->monitor_id = g_idle_add((GSourceFunc)write_image_buf, self);
     
-    /* This is ugly, maybe make a small wrapper that checks for this */
-    /* doing this causes bugs but it'd be nice to clear out these objects */
-    /* Is this even proper? to unref and NULL out? seems really ugly */
-    if(priv->oimg){
-        g_object_unref(priv->oimg);
-        priv->oimg = NULL;
-    }
-    if(priv->img){
-        g_object_unref(priv->img);
-        priv->img = NULL;
-    }
-    if(priv->anim){
-        g_object_unref(priv->anim);
-        priv->anim = NULL;
-    }
-    if(priv->iter){
-        g_object_unref(priv->iter);
-        priv->iter = NULL;
-    }
-    priv->isanimated = FALSE;
-
-    gdk_window_clear(widget->window);
+    gdk_window_clear(GTK_LAYOUT(widget)->bin_window);
 }
 
+/* This should be a gobject property but LAZY */
+void
+monocle_view_set_scale( MonocleView *self, gfloat scale ){
+    MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
+    priv->scale = scale;
+    return;
+}
 void
 monocle_view_scale_image( MonocleView *self, gfloat scale ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
     GtkWidget          *widget = GTK_WIDGET(self);
+
     gint pwidth  = gdk_pixbuf_get_width(priv->oimg);
     gint pheight = gdk_pixbuf_get_height(priv->oimg);
     gint swidth, sheight;
@@ -119,9 +128,12 @@ monocle_view_scale_image( MonocleView *self, gfloat scale ){
     if((swidth == pwidth || sheight == pheight) && scale != 1) /* WOOT ARE YA DOOIN YEH NINNY */
         return;
 
-    g_object_unref(priv->img);
-    priv->img = gdk_pixbuf_scale_simple(priv->oimg, swidth, sheight, GDK_INTERP_BILINEAR); /* make asynchronous */
+    if(priv->img != NULL)
+        g_object_unref(priv->img);
 
+    priv->img = gdk_pixbuf_scale_simple(priv->oimg, swidth, sheight, GDK_INTERP_BILINEAR); /* make asynchronous */
+    
+    gtk_layout_set_size(GTK_LAYOUT(self), gdk_pixbuf_get_width(priv->img), gdk_pixbuf_get_height(priv->img));
     redraw_image(self, 0, 0, -1, -1);
 }
 
@@ -129,7 +141,7 @@ static gboolean
 monocle_view_expose( GtkWidget *widget, GdkEventExpose *event ){
     MonocleView        *self = MONOCLE_VIEW(widget);
     GdkRectangle       area = event->area;
-
+    
     redraw_image(self, area.x, area.y, area.width, area.height);
 
     return FALSE;
@@ -155,31 +167,28 @@ cb_loader_area_prepared( GdkPixbufLoader *loader, MonocleView *self ){
     
     /* Handle the image in terms of an animation until we really know what it is */
     priv->anim = gdk_pixbuf_loader_get_animation(loader);
+    g_object_ref(priv->anim);
     priv->iter = gdk_pixbuf_animation_get_iter(priv->anim, NULL);
+    g_object_ref(priv->iter);
 }
 
 static void
 cb_loader_area_updated( GdkPixbufLoader *loader, gint x, gint y, gint width, gint height, MonocleView *self ){
      MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
-     /* have to do this check continuously because of the way pixbufloader works */
-
-     priv->anim = g_object_ref(priv->anim);
      
+     /* have to do this check continuously because of the way pixbufloader works */
      if(!gdk_pixbuf_animation_is_static_image(priv->anim)){
         priv->isanimated = TRUE;
         if(!gdk_pixbuf_animation_iter_on_currently_loading_frame(priv->iter)){
-            gdk_pixbuf_animation_iter_advance(priv->iter, NULL);               
+            gdk_pixbuf_animation_iter_advance(priv->iter, NULL);              
         }
      }
-    
-     if(priv->img && priv->oimg){
-        g_object_unref(priv->img);
-        g_object_unref(priv->oimg);
-     }
+     
+     if(priv->img != NULL)
+         g_object_unref(priv->img);
 
      priv->oimg = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter);
-     g_object_ref(priv->oimg);
-     priv->img  = g_object_ref(priv->oimg);
+     priv->img = g_object_ref(priv->oimg);
 
      redraw_image(self, x, y, width, height);
 }
@@ -187,28 +196,41 @@ cb_loader_area_updated( GdkPixbufLoader *loader, gint x, gint y, gint width, gin
 static void
 cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
+    
     if(priv->isanimated){
         g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
     }else{
         /* we don't need these anymore*/
         g_object_unref(priv->iter);
+        priv->iter = NULL;
         g_object_unref(priv->anim);
+        priv->anim = NULL;
     }
+
     g_object_unref(priv->loader);
+    priv->loader = NULL;
+
+    monocle_view_scale_image(self, priv->scale);
+    redraw_image(self, 0, 0, -1, -1);
 }
 
 static gboolean
 cb_advance_anim( MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
-   
+    
+    if(!GDK_IS_PIXBUF_ANIMATION_ITER(priv->iter))
+        return FALSE;
+    
     gdk_pixbuf_animation_iter_advance(priv->iter, NULL);
     
-    g_object_unref(priv->img);
+    if(priv->img != NULL)
+        g_object_unref(priv->img);
+
     priv->oimg  = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter); /* I know the docs say to copy this but that mem leaks */
-    priv->img   = g_object_ref(priv->oimg);
+    priv->img = g_object_ref(priv->oimg);
 
     monocle_view_scale_image(self, priv->scale);
-
+    
     g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
 
     return FALSE;
@@ -237,19 +259,29 @@ redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     /* Only draw parts of the pixbuf that actually exist */
     gdk_rectangle_intersect(&region, &pregion, &region);
 
-    /* change the size of the widget to the size of the pixbuf where it is inside the window if we're asked to redraw it completely */
-    if(width == -1 || height == -1){
+    /* ignore all this */
+    /* change the size of the widget to the size of the pixbuf where it is inside the window if we're asked to redraw it completely
+     * gets rid of leftovers when scaling down from a larger size 
+     * Problem is screws up the way the window can be resized 
+     * Scrolled window may fix that
+     */
+    
+    /*if(width == -1 || height == -1){
         GdkRectangle cregion;
         cregion.x = 0;
         cregion.y = 0;
         cregion.width  = widget->allocation.width;
         cregion.height = widget->allocation.height;
         gdk_rectangle_intersect(&cregion, &pregion, &cregion);
-
+        
         gtk_widget_set_size_request(widget, cregion.width, cregion.height);
-    }
+    }*/
+    /* end ignore */
 
-    gdk_draw_pixbuf(widget->window, widget->style->white_gc, priv->img, 
+    /* why this causes spastic flashing I don't know, possibly the pixbuf is taking just a tad too long to draw */
+    /* might be fixable with a temp composition pixmap, but could be too much trouble */
+    gdk_draw_rectangle(GTK_LAYOUT(widget)->bin_window, widget->style->black_gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height); 
+    gdk_draw_pixbuf(GTK_LAYOUT(widget)->bin_window, widget->style->black_gc, priv->img, 
                         region.x, region.y, region.x, region.y, region.width, region.height,
                         GDK_RGB_DITHER_NONE,
                         0, 0);
@@ -266,8 +298,11 @@ write_image_buf( MonocleView *self ){
     if(gdk_pixbuf_loader_write(priv->loader, (const guchar *)&buf, BUFSIZE, NULL) && bytes_read > 0){
         return TRUE;
     }
-    
+   
     gdk_pixbuf_loader_close(priv->loader, NULL);
+    g_io_channel_shutdown(priv->io, TRUE, NULL);
+    g_io_channel_unref(priv->io);
+    priv->io = NULL;
     priv->monitor_id = 0;
     return FALSE;
 }

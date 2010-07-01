@@ -4,7 +4,6 @@
 #define __MONOCLE_H__
 
 #include <gtk/gtk.h>
-#include "image.h"
 #define LENGTH(X) (sizeof X / sizeof X[0])
 
 static const char *__progname = PROGNAME;
