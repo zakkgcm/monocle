@@ -13,3 +13,5 @@ f = fixed, r = reopened
 [ ] images do not progressively show up as they are loaded (see bug 4)
 [f] juggling with references, causing some strange errors
 [ ] unfreed memory obvious with enormous gif images, loading another image shows obvious leftovers in memory
+[ ] images are not centered
+[ ] fit-to-window is broked

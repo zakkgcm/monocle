@@ -37,7 +37,7 @@ static gboolean write_image_buf         (MonocleView *self);
 static void
 monocle_view_init( MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
-
+    
     priv->loader     = NULL;
     priv->oimg       = NULL;
     priv->img        = NULL;

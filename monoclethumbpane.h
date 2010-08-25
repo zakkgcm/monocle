@@ -1,0 +1,33 @@
+/* MonocleThumbpane - thumnail scroll view for monocle */
+#ifndef __MONOCLE_THUMBPANE_H__
+#define __MONOCLE_THUMBPANE_H__
+
+#include <glib-object.h>
+#include <gtk/gtk.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+
+#define MONOCLE_TYPE_THUMBPANE               (monocle_thumbpane_get_type())
+#define MONOCLE_THUMBPANE(obj)               (G_TYPE_CHECK_INSTANCE_CAST ((obj), MONOCLE_TYPE_THUMBPANE, MonocleThumbpane))
+#define MONOCLE_IS_THUMBPANE(obj)            (G_TYPE_CHECK_INSTANCE_TYPE ((obj), MONOCLE_TYPE_THUMBPANE))
+#define MONOCLE_THUMBPANE_CLASS(klass)       (G_TYPE_CHECK_CLASS_CAST ((klass), MONOCLE_TYPE_THUMBPANE, MonocleThumbpaneClass))
+#define MONOCLE_IS_THUMBPANE_CLASS(klass)    (G_TYPE_CHECK_VLASS_TYPE ((klass), MONOCLE_TYPE_THUMBPANE))
+#define MONOCLE_THUMBPANE_GET_CLASS(obj)     (G_TYPE_INSTANCE_GET_CLASS ((obj), MONOCLE_TYPE_THUMBPANE, MonocleThumbpaneClass))
+
+typedef struct _MonocleThumbpane         MonocleThumbpane;
+typedef struct _MonocleThumbpaneClass    MonocleThumbpaneClass;
+
+/* So if I understand this right I should be deriving from container classes, not higher level things like treeview */
+struct _MonocleThumbpane {
+    GtkBin widget;
+};
+
+struct _MonocleThumbpaneClass {
+    GtkBinClass parent_class;
+};
+
+GType monocle_thumbpane_get_type (void);
+
+void monocle_thumbpane_add_image(MonocleThumbpane *self, gchar *filename);
+
+#endif /*__MONOCLE_THUMBPANE_H__*/
+
