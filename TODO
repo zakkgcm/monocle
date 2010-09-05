@@ -1,4 +1,4 @@
-/* THIS IS A TODO FILE, YOU PUT THINGS THAT NEED TO BE DONE HERE*/
+/* THIS IS A TODO FILE, YOU PUT THINGS THAT NEED TO BE DONE HERE */
 1. General code cleanup
 2. make animooshuns work [DONE]
 3. make scaling non-blocking (asynchronous)
@@ -7,4 +7,6 @@
 6. Add film-roll like image selector [HALF ASSED]
 7. Add Zoom-in-to-fit and Zoom-out-to-fit
 8. Add a customizable background to be used for transparent images (checkerboard, black, white)
-
+9. Threading for things like scaling or thumbnail production
+10. zoom-to-fit
+11. pad thumbnails with vertical space (if need be)

@@ -1,7 +1,20 @@
 Monocle views images.
 no silly editing tools no background setting things just view images.
+possibly tools to make your image browsing experience more pleasurable.
 use GTK for user interface for consistency
 
 Goals:
     Asynchronosity, no gooey freezing up when loading or scaling big hueg image
     "Just Works"
+    Lean
+
+Compiling:
+    make
+    there is no step 2
+
+Usage:
+    monocle /path/to/image/file
+    options are as follows:
+        -s (scale)  | sets image scale
+        -R (folder) | recursively loads files from folder [DEFUNCT]
+        -h          | prints help message

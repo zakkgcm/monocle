@@ -5,13 +5,14 @@ f = fixed, r = reopened
     hardly a problem since you'd never scale a gif to 5000x5000 too often
 [ ] gif loading is horrifically slow, problem is gif_main_loop (), takes forever to run for some reason
     only happens with big hueg gifs though.
-[r] ugly spastic blank flashing when redrawing the image, very evident in gifs, caused by rapid redrawing of a background image or even just rapid clearing of the window
+[f] ugly spastic blank flashing when redrawing the image, very evident in gifs, caused by rapid redrawing of a background image or even just rapid clearing of the window
 [f] leftovers of the image when scaling down without touching the window
 [f] leftovers present with transparent gifs as they animate
 [f] images do not scale while or immediately after loading
 [ ] images do not scale while loading
-[ ] images do not progressively show up as they are loaded (see bug 4)
+[f] images do not progressively show up as they are loaded (see bug 4)
 [f] juggling with references, causing some strange errors
 [ ] unfreed memory obvious with enormous gif images, loading another image shows obvious leftovers in memory
 [ ] images are not centered
-[ ] fit-to-window is broked
+[f] fit-to-window is broked
+[ ] fit-to-window infinite loops during size allocate

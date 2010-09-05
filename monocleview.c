@@ -26,7 +26,7 @@ typedef struct _MonocleViewPrivate {
 G_DEFINE_TYPE(MonocleView, monocle_view, GTK_TYPE_LAYOUT)
 
 static gboolean monocle_view_expose     (GtkWidget *widget, GdkEventExpose *event);
-static gboolean monocle_view_configure  (GtkWidget *widget, GdkEventConfigure *event);
+static void monocle_view_size_allocate  (GtkWidget *widget, GtkAllocation *allocation);
 static void cb_loader_area_prepared     (GdkPixbufLoader *loader, MonocleView *self);
 static void cb_loader_area_updated      (GdkPixbufLoader *loader, gint x, gint y, gint width, gint height, MonocleView *self);
 static void cb_loader_closed            (GdkPixbufLoader *loader, MonocleView *self);
@@ -37,25 +37,28 @@ static gboolean write_image_buf         (MonocleView *self);
 static void
 monocle_view_init( MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
-    
+    GdkColor black;
+
     priv->loader     = NULL;
     priv->oimg       = NULL;
     priv->img        = NULL;
     priv->scale      = 0;
     priv->monitor_id = 0;
     priv->isanimated = FALSE;
-
-    /* g_signal_connect(G_OBJECT(GTK_LAYOUT(self)), "configure-event", G_CALLBACK(monocle_view_configure), NULL);  doesn't work */
+    
+    gdk_color_parse("black", &black);
+    gtk_widget_modify_bg(GTK_WIDGET(self), GTK_STATE_NORMAL, &black);
 }
+
+/* TODO: Figure out why gifs are broken as all fuck */
 
 static void
 monocle_view_class_init (MonocleViewClass *klass){
-    GObjectClass *g_class = G_OBJECT_CLASS(klass); /* I SWEAR I 'LL NEED THIS */
     GtkWidgetClass *w_class = GTK_WIDGET_CLASS(klass);
 
     w_class->expose_event    = monocle_view_expose;
-    /*class->configure_event = monocle_view_configure; gtklayout cannot configure event*/ 
-
+    w_class->size_allocate   = monocle_view_size_allocate;
+   
     g_type_class_add_private(klass, sizeof(MonocleViewPrivate));
 }
 
@@ -64,6 +67,9 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     GtkWidget *widget        = GTK_WIDGET(self);
     
+    if(priv->monitor_id != 0)
+        g_source_remove(priv->monitor_id);
+
     /* Kind of gross looking but a wrapper seems unnecessary */
     if(priv->img != NULL){
         g_object_unref(priv->img);
@@ -77,11 +83,12 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
         g_object_unref(priv->anim);
         priv->anim = NULL;
     }
+    /* this will sometimes not be a valid gobject */
     if(priv->iter != NULL){
         g_object_unref(priv->iter);
         priv->iter = NULL;
     }
-    
+
     priv->isanimated = FALSE;
 
     priv->loader = gdk_pixbuf_loader_new();
@@ -94,7 +101,12 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
    
     g_io_channel_set_encoding(priv->io, NULL, NULL);
     priv->monitor_id = g_idle_add((GSourceFunc)write_image_buf, self);
-    
+
+    /*priv->anim = gdk_pixbuf_animation_new_from_file(filename, NULL);
+    priv->iter = gdk_pixbuf_animation_get_iter(priv->anim, NULL);
+    priv->oimg  = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter);
+    priv->img = g_object_ref(priv->oimg);*/
+
     gdk_window_clear(GTK_LAYOUT(widget)->bin_window);
 }
 
@@ -105,6 +117,8 @@ monocle_view_set_scale( MonocleView *self, gfloat scale ){
     priv->scale = scale;
     return;
 }
+
+/* UGLY AS BUTTS CODE */
 void
 monocle_view_scale_image( MonocleView *self, gfloat scale ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
@@ -147,18 +161,18 @@ monocle_view_expose( GtkWidget *widget, GdkEventExpose *event ){
     return FALSE;
 }
 
-static gboolean
-monocle_view_configure( GtkWidget *widget, GdkEventConfigure *event ){
+static void
+monocle_view_size_allocate (GtkWidget *widget, GtkAllocation *allocation){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(MONOCLE_VIEW(widget));
-    /* If we're set to fit-to-window then rescale the image on window resize */
-    /* Inadvertantly makes ugly flashing lines when we clear the window and redraw so often, fix it */
+   
+    GTK_WIDGET_CLASS(monocle_view_parent_class)->size_allocate(widget, allocation);
+
     if(!priv->oimg)
-        return FALSE;
+        return;
 
-    if(priv->scale == 0)
-        monocle_view_scale_image(MONOCLE_VIEW(widget), 0);
-
-    return FALSE;
+    /* Causes an infinite loop of scaling if you resize the window too quickly */
+    /*if(priv->scale == 0)
+        monocle_view_scale_image(MONOCLE_VIEW(widget), 0);*/
 }
 
 static void
@@ -167,9 +181,7 @@ cb_loader_area_prepared( GdkPixbufLoader *loader, MonocleView *self ){
     
     /* Handle the image in terms of an animation until we really know what it is */
     priv->anim = gdk_pixbuf_loader_get_animation(loader);
-    g_object_ref(priv->anim);
     priv->iter = gdk_pixbuf_animation_get_iter(priv->anim, NULL);
-    g_object_ref(priv->iter);
 }
 
 static void
@@ -186,27 +198,27 @@ cb_loader_area_updated( GdkPixbufLoader *loader, gint x, gint y, gint width, gin
      
      if(priv->img != NULL)
          g_object_unref(priv->img);
-
      priv->oimg = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter);
      priv->img = g_object_ref(priv->oimg);
-
+     
      redraw_image(self, x, y, width, height);
 }
 
 static void
 cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
-    
+
     if(priv->isanimated){
+        g_object_ref(priv->anim);
         g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
     }else{
         /* we don't need these anymore*/
-        g_object_unref(priv->iter);
+        /*g_object_unref(priv->iter);*/
         priv->iter = NULL;
-        g_object_unref(priv->anim);
+        /*g_object_unref(priv->anim);*/
         priv->anim = NULL;
     }
-
+    
     g_object_unref(priv->loader);
     priv->loader = NULL;
 
@@ -223,8 +235,7 @@ cb_advance_anim( MonocleView *self ){
     
     gdk_pixbuf_animation_iter_advance(priv->iter, NULL);
     
-    if(priv->img != NULL)
-        g_object_unref(priv->img);
+    g_object_unref(priv->img);
 
     priv->oimg  = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter); /* I know the docs say to copy this but that mem leaks */
     priv->img = g_object_ref(priv->oimg);
@@ -237,6 +248,7 @@ cb_advance_anim( MonocleView *self ){
 }
 
 /* Specify -1 for width/height to use the pixbuf's width/height (ala gdk_draw_pixbuf) */
+/* WARNING: HEADACHES AHEAD */
 static void
 redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     GtkWidget *widget        = GTK_WIDGET(self);
@@ -280,7 +292,9 @@ redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
 
     /* why this causes spastic flashing I don't know, possibly the pixbuf is taking just a tad too long to draw */
     /* might be fixable with a temp composition pixmap, but could be too much trouble */
-    gdk_draw_rectangle(GTK_LAYOUT(widget)->bin_window, widget->style->black_gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height); 
+    /* drawing over with the rectangle ends up only redrawing one scanline at a time during load as well */
+    /* herp all I had to do was set the background color for gtklayout */
+    /*gdk_draw_rectangle(GTK_LAYOUT(widget)->bin_window, widget->style->black_gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);*/
     gdk_draw_pixbuf(GTK_LAYOUT(widget)->bin_window, widget->style->black_gc, priv->img, 
                         region.x, region.y, region.x, region.y, region.width, region.height,
                         GDK_RGB_DITHER_NONE,

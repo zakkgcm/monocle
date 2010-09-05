@@ -4,7 +4,8 @@
 # configure scripts are for little girls
 include config.mk
 
-SRC = monocle.c monocleview.c monoclethumbpane.c
+SRC = monocle.c monocleview.c monoclethumbpane.c\
+      utils/md5.c
 OBJ = ${SRC:.c=.o}
 
 all: options monocle

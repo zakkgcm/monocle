@@ -24,6 +24,10 @@ static GtkWidget
     return gtk_item_factory_get_widget(item_factory, "<main>");
 }
 
+void set_image (GtkWidget *widget, gchar *filename, gpointer data){
+    monocle_view_set_image(image, filename);
+}
+
 void cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -84,15 +88,15 @@ void usage (){
            );
     exit(EXIT_FAILURE);
 }
-            
+
 
 int main (int argc, char *argv[]){
     GtkWidget *vbox, *hbox, *menubar, *scrolledwin;
-    float scale = 0;
+    float scale = 1;
 
     int optc;
     extern char *optarg;
-    while((optc = getopt(argc, argv, "R:s:")) != EOF)
+    while((optc = getopt(argc, argv, "hR:s:")) != EOF)
         switch(optc) {
             case 'R':
                 printf("Loading files from %s recursively\n", optarg);
@@ -108,6 +112,7 @@ int main (int argc, char *argv[]){
                     printf("Unknown scale %s, defaulting to fit to window\n", optarg);
                 }
                 break;
+            case 'h':
             default:
                 usage();
                 exit(EXIT_FAILURE);
@@ -131,6 +136,7 @@ int main (int argc, char *argv[]){
     menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));
     image = g_object_new(MONOCLE_TYPE_VIEW, NULL);
     thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
+    g_signal_connect(G_OBJECT(thumbpane), "image-changed", G_CALLBACK(set_image), NULL);
     monocle_view_set_scale(image, scale);
     
     gtk_widget_set_size_request(GTK_WIDGET(thumbpane), 150, -1);
@@ -149,7 +155,7 @@ int main (int argc, char *argv[]){
     gtk_widget_show_all(window);
    
     if(argc > 1)
-        monocle_view_set_image(image, argv[argc-1]);
+        monocle_thumbpane_add_image(thumbpane, argv[argc-1]);
 
     /* Run Gtk */
     gtk_main();

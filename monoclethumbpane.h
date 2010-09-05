@@ -5,6 +5,7 @@
 #include <glib-object.h>
 #include <gtk/gtk.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <stdlib.h>
 
 #define MONOCLE_TYPE_THUMBPANE               (monocle_thumbpane_get_type())
 #define MONOCLE_THUMBPANE(obj)               (G_TYPE_CHECK_INSTANCE_CAST ((obj), MONOCLE_TYPE_THUMBPANE, MonocleThumbpane))
@@ -23,6 +24,8 @@ struct _MonocleThumbpane {
 
 struct _MonocleThumbpaneClass {
     GtkBinClass parent_class;
+
+    void (* monocle_thumbpane) (MonocleThumbpane *mt);
 };
 
 GType monocle_thumbpane_get_type (void);
