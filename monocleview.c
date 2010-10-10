@@ -27,6 +27,7 @@ G_DEFINE_TYPE(MonocleView, monocle_view, GTK_TYPE_LAYOUT)
 
 static gboolean monocle_view_expose     (GtkWidget *widget, GdkEventExpose *event);
 static void monocle_view_size_allocate  (GtkWidget *widget, GtkAllocation *allocation);
+static void cb_loader_size_prepared     (GdkPixbufLoader *loader, gint width, gint height, MonocleView *self);
 static void cb_loader_area_prepared     (GdkPixbufLoader *loader, MonocleView *self);
 static void cb_loader_area_updated      (GdkPixbufLoader *loader, gint x, gint y, gint width, gint height, MonocleView *self);
 static void cb_loader_closed            (GdkPixbufLoader *loader, MonocleView *self);
@@ -49,8 +50,6 @@ monocle_view_init( MonocleView *self ){
     gdk_color_parse("black", &black);
     gtk_widget_modify_bg(GTK_WIDGET(self), GTK_STATE_NORMAL, &black);
 }
-
-/* TODO: Figure out why gifs are broken as all fuck */
 
 static void
 monocle_view_class_init (MonocleViewClass *klass){
@@ -92,6 +91,7 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     priv->isanimated = FALSE;
 
     priv->loader = gdk_pixbuf_loader_new();
+    g_signal_connect_object(G_OBJECT(priv->loader), "size-prepared",  G_CALLBACK(cb_loader_size_prepared), self, 0);
     g_signal_connect_object(G_OBJECT(priv->loader), "area-prepared", G_CALLBACK(cb_loader_area_prepared), self, 0);
     g_signal_connect_object(G_OBJECT(priv->loader), "area-updated",  G_CALLBACK(cb_loader_area_updated), self, 0);
     g_signal_connect_object(G_OBJECT(priv->loader), "closed",        G_CALLBACK(cb_loader_closed), self, 0);
@@ -101,11 +101,6 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
    
     g_io_channel_set_encoding(priv->io, NULL, NULL);
     priv->monitor_id = g_idle_add((GSourceFunc)write_image_buf, self);
-
-    /*priv->anim = gdk_pixbuf_animation_new_from_file(filename, NULL);
-    priv->iter = gdk_pixbuf_animation_get_iter(priv->anim, NULL);
-    priv->oimg  = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter);
-    priv->img = g_object_ref(priv->oimg);*/
 
     gdk_window_clear(GTK_LAYOUT(widget)->bin_window);
 }
@@ -182,6 +177,11 @@ cb_loader_area_prepared( GdkPixbufLoader *loader, MonocleView *self ){
     /* Handle the image in terms of an animation until we really know what it is */
     priv->anim = gdk_pixbuf_loader_get_animation(loader);
     priv->iter = gdk_pixbuf_animation_get_iter(priv->anim, NULL);
+}
+
+static void
+cb_loader_size_prepared( GdkPixbufLoader *loader, gint width, gint height, MonocleView *self){
+    gtk_layout_set_size(GTK_LAYOUT(self), width, height);
 }
 
 static void
@@ -271,30 +271,7 @@ redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     /* Only draw parts of the pixbuf that actually exist */
     gdk_rectangle_intersect(&region, &pregion, &region);
 
-    /* ignore all this */
-    /* change the size of the widget to the size of the pixbuf where it is inside the window if we're asked to redraw it completely
-     * gets rid of leftovers when scaling down from a larger size 
-     * Problem is screws up the way the window can be resized 
-     * Scrolled window may fix that
-     */
-    
-    /*if(width == -1 || height == -1){
-        GdkRectangle cregion;
-        cregion.x = 0;
-        cregion.y = 0;
-        cregion.width  = widget->allocation.width;
-        cregion.height = widget->allocation.height;
-        gdk_rectangle_intersect(&cregion, &pregion, &cregion);
-        
-        gtk_widget_set_size_request(widget, cregion.width, cregion.height);
-    }*/
-    /* end ignore */
-
-    /* why this causes spastic flashing I don't know, possibly the pixbuf is taking just a tad too long to draw */
-    /* might be fixable with a temp composition pixmap, but could be too much trouble */
-    /* drawing over with the rectangle ends up only redrawing one scanline at a time during load as well */
-    /* herp all I had to do was set the background color for gtklayout */
-    /*gdk_draw_rectangle(GTK_LAYOUT(widget)->bin_window, widget->style->black_gc, TRUE, 0, 0, widget->allocation.width, widget->allocation.height);*/
+    /* draw that pornography */
     gdk_draw_pixbuf(GTK_LAYOUT(widget)->bin_window, widget->style->black_gc, priv->img, 
                         region.x, region.y, region.x, region.y, region.width, region.height,
                         GDK_RGB_DITHER_NONE,

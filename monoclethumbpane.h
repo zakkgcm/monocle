@@ -19,18 +19,20 @@ typedef struct _MonocleThumbpaneClass    MonocleThumbpaneClass;
 
 /* So if I understand this right I should be deriving from container classes, not higher level things like treeview */
 struct _MonocleThumbpane {
-    GtkBin widget;
+    GtkScrolledWindow widget;
 };
 
 struct _MonocleThumbpaneClass {
-    GtkBinClass parent_class;
+    GtkScrolledWindowClass parent_class;
 
     void (* monocle_thumbpane) (MonocleThumbpane *mt);
 };
 
 GType monocle_thumbpane_get_type (void);
 
-void monocle_thumbpane_add_image(MonocleThumbpane *self, gchar *filename);
+void monocle_thumbpane_add_image    (MonocleThumbpane *self, gchar *filename);
+void monocle_thumbpane_add_many     (MonocleThumbpane *self, GSList *filenames);
+void monocle_thumbpane_add_folder   (MonocleThumbpane *self, gchar *folder, gboolean recursive);
 
 #endif /*__MONOCLE_THUMBPANE_H__*/
 

@@ -9,12 +9,22 @@ Goals:
     Lean
 
 Compiling:
-    make
-    there is no step 2
+    lignucks:
+        make
+        there is no step 2
+    windowez:
+        get mingw
+        edit config.mk to point to the proper mingw dir
+        make
 
 Usage:
-    monocle /path/to/image/file
+    monocle [options] [/path/to/image/file]
     options are as follows:
         -s (scale)  | sets image scale
-        -R (folder) | recursively loads files from folder [DEFUNCT]
+        -R (folder) | recursively loads files from folder (not working)
+        -v          | version info
         -h          | prints help message
+
+Quirks (aka unfixed things that aren't quite bugs):
+    "Open Folder" will try to load the whole folder, images or not
+    Thumbnails aren't generated, only pre-generated ones are loaded

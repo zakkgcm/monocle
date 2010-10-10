@@ -24,11 +24,12 @@ static GtkWidget
     return gtk_item_factory_get_widget(item_factory, "<main>");
 }
 
-void set_image (GtkWidget *widget, gchar *filename, gpointer data){
+void cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
     monocle_view_set_image(image, filename);
 }
 
-void cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+/* File Stuff */
+static void cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_OPEN,
                                 GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -37,11 +38,29 @@ void cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *men
     gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
 
     if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT){ 
-        char *file;
-        file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (chooser));
-        monocle_thumbpane_add_image(thumbpane, file);
-        monocle_view_set_image(image, file);
-        g_free (file);
+        GSList *files;
+        files = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER (chooser)); /*get uris doesn't encode right for thumbnails*/
+        monocle_thumbpane_add_many(thumbpane, files);
+        g_slist_free (files);
+    }
+    gtk_widget_destroy (chooser);
+    
+    return;
+}
+
+static void cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+    GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
+                                GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
+                                GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+				                GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
+				                NULL);
+    gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
+
+    if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT){ 
+        gchar *folder;
+        folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (chooser));
+        monocle_thumbpane_add_folder(thumbpane, folder, FALSE);
+        g_free (folder);
     }
     gtk_widget_destroy (chooser);
     
@@ -83,6 +102,7 @@ void usage (){
             "usage: %s [args] [imagefile]\n"
             "\t-R [directory]   Recursively load files from a directory (defunct)\n"
             "\t-s [scale]       Set the initial scale, 'fit' or 0 for fit to window (default)\n"
+            "\t-v               Show version information\n",
             "\t-h               Show this help message\n",
             __progname
            );
@@ -91,15 +111,16 @@ void usage (){
 
 
 int main (int argc, char *argv[]){
-    GtkWidget *vbox, *hbox, *menubar, *scrolledwin;
+    GtkWidget *vbox, *hbox, *menubar, *view_win;
     float scale = 1;
 
     int optc;
     extern char *optarg;
-    while((optc = getopt(argc, argv, "hR:s:")) != EOF)
+    while((optc = getopt(argc, argv, "hvR:s:")) != EOF)
         switch(optc) {
             case 'R':
                 printf("Loading files from %s recursively\n", optarg);
+                /* call add folder here */
                 break;
             case 's':
                 if(!strcmp(optarg, "fit")){
@@ -112,6 +133,8 @@ int main (int argc, char *argv[]){
                     printf("Unknown scale %s, defaulting to fit to window\n", optarg);
                 }
                 break;
+            case 'v':
+                printf("Monocle Version: %s\n", VERSION);
             case 'h':
             default:
                 usage();
@@ -136,26 +159,26 @@ int main (int argc, char *argv[]){
     menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));
     image = g_object_new(MONOCLE_TYPE_VIEW, NULL);
     thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
-    g_signal_connect(G_OBJECT(thumbpane), "image-changed", G_CALLBACK(set_image), NULL);
+    g_signal_connect(G_OBJECT(thumbpane), "image-changed", G_CALLBACK(cb_set_image), NULL);
     monocle_view_set_scale(image, scale);
     
     gtk_widget_set_size_request(GTK_WIDGET(thumbpane), 150, -1);
 
     /* Contain the MonocleView */
-    scrolledwin = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scrolledwin), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    gtk_container_add(GTK_CONTAINER(scrolledwin), GTK_WIDGET(image));
+    view_win      = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(view_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(view_win), GTK_WIDGET(image));
     
     gtk_box_pack_start(GTK_BOX (vbox), menubar, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX (vbox), GTK_WIDGET(hbox), TRUE, TRUE, 0);
 
     gtk_box_pack_start(GTK_BOX (hbox), GTK_WIDGET(thumbpane), FALSE, FALSE, 0);
-    gtk_box_pack_end(GTK_BOX (hbox), GTK_WIDGET(scrolledwin), TRUE, TRUE, 0);
+    gtk_box_pack_end(GTK_BOX (hbox), GTK_WIDGET(view_win), TRUE, TRUE, 0);
 
     gtk_widget_show_all(window);
-   
+    
     if(argc > 1)
-        monocle_thumbpane_add_image(thumbpane, argv[argc-1]);
+       monocle_thumbpane_add_image(thumbpane, argv[argc-1]);
 
     /* Run Gtk */
     gtk_main();

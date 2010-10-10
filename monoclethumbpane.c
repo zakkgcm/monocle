@@ -16,7 +16,8 @@ typedef struct _MonocleThumbpanePrivate {
 
 /* Thumbpane keeps a list of the loaded files handy, nothing else really has a use for such a list so there's no need to keep it outside of this widget */
 
-G_DEFINE_TYPE(MonocleThumbpane, monocle_thumbpane, GTK_TYPE_BIN)
+/* TODO: don't inherit scrolled window or something */
+G_DEFINE_TYPE(MonocleThumbpane, monocle_thumbpane, GTK_TYPE_SCROLLED_WINDOW)
 
 enum {
     COL_FILENAME = 0,
@@ -31,6 +32,7 @@ enum {
 
 static void monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation);
 static gboolean cb_row_selected (GtkTreeSelection *selection, GtkTreeModel *model, GtkTreePath *path, gboolean curpath, gpointer user_data);
+static GdkPixbuf *generate_thumbnail (gchar *filename);
 static gchar *md5sum (gchar *str);
 static gchar *encode_file_uri (gchar *str);
 
@@ -67,8 +69,9 @@ monocle_thumbpane_init (MonocleThumbpane *self){
     gtk_tree_selection_set_select_function(sel, cb_row_selected, self, NULL);
 
     priv->treeview = GTK_TREE_VIEW(treeview);
-
-    gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(priv->treeview));
+    
+    gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(priv->treeview)); /*(monocle:10764): Gtk-CRITICAL **: gtk_range_get_adjustment: assertion `GTK_IS_RANGE (range)' failed*/
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(self), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
 }
 
 
@@ -78,7 +81,7 @@ monocle_thumbpane_class_init (MonocleThumbpaneClass *klass){
     GtkWidgetClass *w_class = GTK_WIDGET_CLASS(klass);
 
     g_type_class_add_private(klass, sizeof(MonocleThumbpanePrivate));
-    w_class->size_allocate = monocle_thumbpane_size_allocate;
+    /*w_class->size_allocate = monocle_thumbpane_size_allocate;*/
 
     monocle_thumbpane_signals[CHANGED_SIGNAL] =
             g_signal_new( "image-changed", G_TYPE_FROM_CLASS(klass),
@@ -92,34 +95,79 @@ monocle_thumbpane_class_init (MonocleThumbpaneClass *klass){
 void
 monocle_thumbpane_add_image (MonocleThumbpane *self, gchar *filename){
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
-    gchar *uri = encode_file_uri(filename);
-    gchar *md5uri = md5sum(uri);
-    gchar *homedir = getenv("HOME");
-    gchar *file;
     GdkPixbuf *thumb;
     GtkListStore *list;
     GtkTreeIter row;
 
-    /* TODO: Check through ~/.thumbnails and find an appropriate thumbnail for the image */
-    /* TODO: md5 "uri" and look for a thumbnail in the thumbnails dir */
-    
-    file = g_malloc(strlen(homedir) + strlen(md5uri) + 25);
-    sprintf(file, "%s/.thumbnails/normal/%s.png", homedir, md5uri);
-    if((thumb = gdk_pixbuf_new_from_file(file, NULL)) == NULL){
-        /* add thumbnail to generation queue here */
-        /* who was thumbnail? */
-        thumb = gdk_pixbuf_new_from_file("./Itisamystery.gif", NULL);
-    }
-    
+    thumb = generate_thumbnail(filename);
+
     list = GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview));
     gtk_list_store_append(list, &row);
     gtk_list_store_set(list, &row, COL_FILENAME, filename, -1);
     gtk_list_store_set(list, &row, COL_THUMBNAIL, thumb, -1);
     gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &row);
 
-    g_free(uri);
-    g_free(file);
     g_object_unref(thumb);
+}
+
+/* Add a whole bunch of images (or just two whichever) */
+void
+monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GdkPixbuf *thumb;
+    GtkListStore *list;
+    GtkTreeIter row;
+
+    list = GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview));
+    g_object_ref(list);
+    gtk_tree_view_set_model(priv->treeview, NULL);
+
+    do {
+        thumb = generate_thumbnail((gchar *)filenames->data);
+        gtk_list_store_append(list, &row);
+        gtk_list_store_set(list, &row, COL_FILENAME, (gchar *)filenames->data, -1);
+        gtk_list_store_set(list, &row, COL_THUMBNAIL, thumb, -1);
+        g_object_unref(thumb);
+    } while ((filenames = g_slist_next(filenames)) != NULL);
+    
+    gtk_tree_view_set_model(priv->treeview, GTK_TREE_MODEL(list));
+    /* TODO: make this select the first item in the list */
+    gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &row);
+    g_object_unref(list);
+}
+
+/* Add a whole bunch of images (or just two whichever) from a directory */
+/* it's cool because it can be easily made recursive */
+void
+monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean recursive){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GDir *folder_tree;
+    GSList *filenames;
+    gchar *filename, *filepath;
+    
+    filenames = NULL;
+
+    if((folder_tree = g_dir_open(folder, 0, NULL)) == NULL)
+        return;
+
+    while ((filename = g_dir_read_name(folder_tree)) != NULL){
+        /* do not modify or free the filename, copy it in a sensible manner please */
+        /* we don't modify it in any case but fix it anyway */
+        /* some check for an image file here
+         * want to avoid just checking file extension since it may not be true*/
+        /* patch together the full path of the file, 2 is a backslash + nul */
+        filepath = g_malloc(strlen(folder) + strlen(filename) + 2);
+        sprintf(filepath, "%s/%s", folder, filename);
+        if(g_file_test(filepath, G_FILE_TEST_IS_REGULAR)){
+            filenames = g_slist_prepend(filenames, filepath); /* prepend + reverse is quicker */
+        }
+    }
+    filenames = g_slist_reverse(filenames);
+
+    g_dir_close(folder_tree);
+    monocle_thumbpane_add_many(self, filenames);
+
+    g_slist_free(filenames);
 }
 
 static void 
@@ -164,6 +212,28 @@ cb_row_selected (GtkTreeSelection *selection,
 
 }
 
+/* TODO: move this to another thread or idle loop */
+static GdkPixbuf
+*generate_thumbnail (gchar *filename){
+    gchar *uri = encode_file_uri(filename);
+    gchar *md5uri = md5sum(uri);
+    gchar *homedir = getenv("HOME"); /* put this elsewhere, no sense calling it everytime we want a thumbnail */
+    gchar *file;
+
+    GdkPixbuf *thumb;
+
+    file = g_malloc(strlen(homedir) + strlen(md5uri) + 25);
+    sprintf(file, "%s/.thumbnails/normal/%s.png", homedir, md5uri);
+    if((thumb = gdk_pixbuf_new_from_file(file, NULL)) == NULL){
+        /* add thumbnail to generation queue here */
+        /* who was thumbnail? */
+        thumb = gdk_pixbuf_new_from_file("./Itisamystery.gif", NULL);
+    }
+    
+    g_free(uri);
+    g_free(file);
+    return thumb;
+}
 
 /* md5hashes a string */
 static gchar
