@@ -12,6 +12,7 @@ W32OBJ = $(SRC:.c=-w32.o)
 all: options monocle
 
 options: 
+	@echo "*** There are a few warnings but they are known and superficial, things should still work ***"
 	@echo monocle options:
 	@echo "prefix:  ${PREFIX}"
 	@echo "CFLAGS:  ${CFLAGS}"
@@ -26,7 +27,6 @@ options:
 	@${W32CC} -c ${W32CFLAGS} $< -o $@
 
 monocle: options ${OBJ}
-	@echo "*** There are a few warnings but they are known and superficial, things should still work ***"
 	@echo ${CC} ${OBJ} -o $@
 	@${CC} ${LDFLAGS} ${OBJ} -o $@
 

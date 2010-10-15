@@ -13,3 +13,7 @@
 13. faster image loading
 14. slideshow
 15. image sorting and orginization (ty ed ❤)
+16. convert all the sprintfs to the (supposedly) more secure glib wrappers
+17. proper add/remove system for image list
+18. file sorting in the list
+

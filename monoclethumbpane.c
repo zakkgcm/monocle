@@ -1,6 +1,8 @@
 /* MonocleThumbPane implementation file
  * goals: asynchronous, minimal mem usage
  * issues: keeping thumbnails in memory vs hard drive
+ * author: cheeseum
+ * license: see LICENSE
  */
 
 #include <string.h>
@@ -30,7 +32,7 @@ enum {
     LAST_SIGNAL
 };
 
-static void monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation);
+/*static void monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation);*/
 static gboolean cb_row_selected (GtkTreeSelection *selection, GtkTreeModel *model, GtkTreePath *path, gboolean curpath, gpointer user_data);
 static GdkPixbuf *generate_thumbnail (gchar *filename);
 static gchar *md5sum (gchar *str);
@@ -78,7 +80,7 @@ monocle_thumbpane_init (MonocleThumbpane *self){
 static void
 monocle_thumbpane_class_init (MonocleThumbpaneClass *klass){
     /* GObjectClass *g_class = G_OBJECT_CLASS(klass); */
-    GtkWidgetClass *w_class = GTK_WIDGET_CLASS(klass);
+    /*GtkWidgetClass *w_class = GTK_WIDGET_CLASS(klass);*/
 
     g_type_class_add_private(klass, sizeof(MonocleThumbpanePrivate));
     /*w_class->size_allocate = monocle_thumbpane_size_allocate;*/
@@ -138,12 +140,13 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames){
 
 /* Add a whole bunch of images (or just two whichever) from a directory */
 /* it's cool because it can be easily made recursive */
+/* TODO: sorting */
 void
 monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean recursive){
-    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     GDir *folder_tree;
     GSList *filenames;
-    gchar *filename, *filepath;
+    const gchar *filename;
+    gchar *filepath;
     
     filenames = NULL;
 
@@ -151,26 +154,29 @@ monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean re
         return;
 
     while ((filename = g_dir_read_name(folder_tree)) != NULL){
-        /* do not modify or free the filename, copy it in a sensible manner please */
-        /* we don't modify it in any case but fix it anyway */
         /* some check for an image file here
-         * want to avoid just checking file extension since it may not be true*/
+         * want to avoid just checking file extension since it may not be true */
         /* patch together the full path of the file, 2 is a backslash + nul */
         filepath = g_malloc(strlen(folder) + strlen(filename) + 2);
         sprintf(filepath, "%s/%s", folder, filename);
-        if(g_file_test(filepath, G_FILE_TEST_IS_REGULAR)){
+        
+        if(recursive && g_file_test(filepath, G_FILE_TEST_IS_DIR)){
+            monocle_thumbpane_add_folder (self, filepath, TRUE);
+        }else if(g_file_test(filepath, G_FILE_TEST_IS_REGULAR)){
             filenames = g_slist_prepend(filenames, filepath); /* prepend + reverse is quicker */
         }
     }
     filenames = g_slist_reverse(filenames);
-
+    
     g_dir_close(folder_tree);
-    monocle_thumbpane_add_many(self, filenames);
-
-    g_slist_free(filenames);
+    if(filenames != NULL){
+        monocle_thumbpane_add_many(self, filenames);
+        do { g_free(filenames->data); } while ((filenames = g_slist_next(filenames)) != NULL);
+        g_slist_free(filenames);
+    }
 }
 
-static void 
+/*static void 
 monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation){
     GtkWidget *child;
     GtkAllocation child_allocation;
@@ -185,7 +191,7 @@ monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation){
         child_allocation.height = allocation->height;
         gtk_widget_size_allocate (child, &child_allocation);
     }
-}
+}*/
 
 static gboolean
 cb_row_selected (GtkTreeSelection *selection,
@@ -278,7 +284,7 @@ static gchar
     }
     *pbuf = '\0';
 
-    /* Ugly to do this malloc, keeps from using extra that isn't needed previously and keeps code neat but isn't really necessary */
+    /* Ugly to do this malloc, keeps from using extra space that isn't needed previously and keeps code neat but isn't really necessary */
     uri = g_malloc(strlen(buf) + 8);
     sprintf(uri, "file://%s", buf);
     g_free(buf);

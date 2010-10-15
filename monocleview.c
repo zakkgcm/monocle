@@ -1,3 +1,8 @@
+/* monocle view source file
+ * displays image
+ * author: cheeseum
+ * license: see LICENSE
+ */
 #include "monocleview.h"
 
 #define BUFSIZE 4096

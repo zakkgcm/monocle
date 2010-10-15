@@ -16,3 +16,4 @@ f = fixed, r = reopened
 [ ] images are not centered
 [f] fit-to-window is broked
 [ ] fit-to-window infinite loops during size allocate
+[ ] commandline filepath arguments break thumbnail loading (trailing slash, relative paths)

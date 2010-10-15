@@ -1,4 +1,7 @@
-/* main monocle implementation */
+/* main monocle implementation 
+ * author: cheeseum
+ * license: see LICENSE
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -49,17 +52,22 @@ static void cb_open_file (gpointer callback_data, guint callback_action, GtkWidg
 }
 
 static void cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
-    GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
+    GtkWidget *recursive_toggle = gtk_check_button_new_with_label("Open Recursively?");
+    GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Folder", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
                                 GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 				                GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 				                NULL);
     gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
-
+    gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(chooser), recursive_toggle);
+    
     if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT){ 
         gchar *folder;
+        gboolean recursive_load = FALSE;
+        if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(recursive_toggle)))
+            recursive_load = TRUE;
         folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (chooser));
-        monocle_thumbpane_add_folder(thumbpane, folder, FALSE);
+        monocle_thumbpane_add_folder(thumbpane, folder, recursive_load);
         g_free (folder);
     }
     gtk_widget_destroy (chooser);
@@ -99,10 +107,10 @@ void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *m
 
 void usage (){
     fprintf(stderr,
-            "usage: %s [args] [imagefile]\n"
-            "\t-R [directory]   Recursively load files from a directory (defunct)\n"
+            "usage: %s [args] [imagefile/folder]\n"
+            "\t-R               Recursively load files from a directory\n"
             "\t-s [scale]       Set the initial scale, 'fit' or 0 for fit to window (default)\n"
-            "\t-v               Show version information\n",
+            "\t-v               Show version information\n"
             "\t-h               Show this help message\n",
             __progname
            );
@@ -113,14 +121,14 @@ void usage (){
 int main (int argc, char *argv[]){
     GtkWidget *vbox, *hbox, *menubar, *view_win;
     float scale = 1;
+    gboolean recursive_load = FALSE;
 
     int optc;
     extern char *optarg;
-    while((optc = getopt(argc, argv, "hvR:s:")) != EOF)
+    while((optc = getopt(argc, argv, "hvRs:")) != EOF)
         switch(optc) {
             case 'R':
-                printf("Loading files from %s recursively\n", optarg);
-                /* call add folder here */
+                recursive_load = TRUE;
                 break;
             case 's':
                 if(!strcmp(optarg, "fit")){
@@ -177,8 +185,13 @@ int main (int argc, char *argv[]){
 
     gtk_widget_show_all(window);
     
-    if(argc > 1)
-       monocle_thumbpane_add_image(thumbpane, argv[argc-1]);
+    if(argc > 1){
+        /*TODO: do some path sanitation or otherwise here */
+        if(g_file_test(argv[argc-1], G_FILE_TEST_IS_DIR))
+            monocle_thumbpane_add_folder(thumbpane, argv[argc-1], recursive_load);
+        else
+            monocle_thumbpane_add_image(thumbpane, argv[argc-1]);
+    }
 
     /* Run Gtk */
     gtk_main();

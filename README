@@ -16,12 +16,13 @@ Compiling:
         get mingw
         edit config.mk to point to the proper mingw dir
         make
+        try to run it and realize there is no support for Thumbs.db
 
 Usage:
-    monocle [options] [/path/to/image/file]
+    monocle [options] [file or folder]
     options are as follows:
         -s (scale)  | sets image scale
-        -R (folder) | recursively loads files from folder (not working)
+        -R          | recursively loads folder if specified
         -v          | version info
         -h          | prints help message
 
