@@ -26,6 +26,9 @@ Usage:
         -v          | version info
         -h          | prints help message
 
+    files are added to a list of images to be viewed as oppose to viewing a folder or bunch at a time
+    the add button is broken, click remove to remove an image from the list (one at a time) 
+
 Quirks (aka unfixed things that aren't quite bugs):
     "Open Folder" will try to load the whole folder, images or not
     Thumbnails aren't generated, only pre-generated ones are loaded

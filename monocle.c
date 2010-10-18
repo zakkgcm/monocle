@@ -104,6 +104,13 @@ void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *m
     return;
 }
 
+/* Button Callbacks */
+gboolean cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data){
+    if(user_data == 0){
+        monocle_thumbpane_remove_current(thumbpane);
+    }
+    return FALSE;
+}
 
 void usage (){
     fprintf(stderr,
@@ -119,7 +126,9 @@ void usage (){
 
 
 int main (int argc, char *argv[]){
-    GtkWidget *vbox, *hbox, *menubar, *view_win;
+    GtkWidget *vbox, *hbox, *vthumbbox, *hthumbbox,
+              *menubar, *view_win,
+              *thumbadd, *thumbrm;
     float scale = 1;
     gboolean recursive_load = FALSE;
 
@@ -155,19 +164,35 @@ int main (int argc, char *argv[]){
     g_signal_connect(G_OBJECT(window), "delete_event", G_CALLBACK(gtk_main_quit), NULL);
     gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
 
+    /* Thumbpane VBox and Buttons */
+    thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
+    g_signal_connect(G_OBJECT(thumbpane), "image-changed", G_CALLBACK(cb_set_image), NULL);
+
+    vthumbbox = gtk_vbox_new(FALSE, 1);
+    hthumbbox = gtk_hbutton_box_new();
+    thumbadd    = gtk_button_new_from_stock(GTK_STOCK_ADD);
+    thumbrm     = gtk_button_new_from_stock(GTK_STOCK_REMOVE);
+
+    g_signal_connect(G_OBJECT(thumbadd), "button-release-event", G_CALLBACK(cb_thumbpane_addrmbutton), GINT_TO_POINTER(1));
+    g_signal_connect(G_OBJECT(thumbrm), "button-release-event", G_CALLBACK(cb_thumbpane_addrmbutton), GINT_TO_POINTER(0));
+ 
+
+    gtk_box_pack_start(GTK_BOX(hthumbbox), thumbadd, FALSE, FALSE, 0);
+    gtk_box_pack_end(GTK_BOX(hthumbbox), thumbrm, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vthumbbox), GTK_WIDGET(thumbpane), TRUE, TRUE, 0);
+    gtk_box_pack_end(GTK_BOX(vthumbbox), hthumbbox, FALSE, FALSE, 0);
+
     /* Main VBox */
     vbox = gtk_vbox_new(FALSE, 1);
     gtk_container_border_width(GTK_CONTAINER (vbox), 1);
     gtk_container_add(GTK_CONTAINER(window), vbox);
     
-    /* HBox, contains monocleview and thumbpane */
+    /* HBox, contains monocleview and thumbpane vbox*/
     hbox = gtk_hbox_new(FALSE, 1);
     gtk_container_border_width(GTK_CONTAINER (hbox), 1);
 
     menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));
     image = g_object_new(MONOCLE_TYPE_VIEW, NULL);
-    thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
-    g_signal_connect(G_OBJECT(thumbpane), "image-changed", G_CALLBACK(cb_set_image), NULL);
     monocle_view_set_scale(image, scale);
     
     gtk_widget_set_size_request(GTK_WIDGET(thumbpane), 150, -1);
@@ -180,7 +205,7 @@ int main (int argc, char *argv[]){
     gtk_box_pack_start(GTK_BOX (vbox), menubar, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX (vbox), GTK_WIDGET(hbox), TRUE, TRUE, 0);
 
-    gtk_box_pack_start(GTK_BOX (hbox), GTK_WIDGET(thumbpane), FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX (hbox), vthumbbox, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX (hbox), GTK_WIDGET(view_win), TRUE, TRUE, 0);
 
     gtk_widget_show_all(window);

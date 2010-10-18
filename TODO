@@ -14,6 +14,10 @@
 14. slideshow
 15. image sorting and orginization (ty ed ❤)
 16. convert all the sprintfs to the (supposedly) more secure glib wrappers
-17. proper add/remove system for image list
+17. proper add/remove system for image list [DONE ish]
 18. file sorting in the list
+19. multi-select for removal
 
+/* These are "feature decisions", stuff to be thought about */
+1. remove button vs press delete key only
+2. hide thumbpane on single image load? option?

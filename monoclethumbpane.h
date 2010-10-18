@@ -34,5 +34,8 @@ void monocle_thumbpane_add_image    (MonocleThumbpane *self, gchar *filename);
 void monocle_thumbpane_add_many     (MonocleThumbpane *self, GSList *filenames);
 void monocle_thumbpane_add_folder   (MonocleThumbpane *self, gchar *folder, gboolean recursive);
 
+void monocle_thumbpane_removw           (MonocleThumbpane *self, GtkTreeIter *row);
+void monocle_thumbpane_remove_many      (MonocleThumbpane *self, GList *row_refs);
+void monocle_thumbpane_remove_current   (MonocleThumbpane *self);
 #endif /*__MONOCLE_THUMBPANE_H__*/
 

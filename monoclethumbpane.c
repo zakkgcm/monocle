@@ -193,6 +193,61 @@ monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation){
     }
 }*/
 
+void
+monocle_thumbpane_remove (MonocleThumbpane *self, GtkTreeIter *row){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    gtk_list_store_remove(GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview)), row);
+    g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
+    /* TODO: Make this select the next available item in the list */
+}
+
+void
+monocle_thumbpane_remove_many (MonocleThumbpane *self, GList *row_refs){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkListStore *list;
+    GtkTreePath *path;
+    GtkTreeIter row;
+
+    list = GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview));
+    g_object_ref(list);
+    gtk_tree_view_set_model(priv->treeview, NULL);
+    while (row_refs != NULL){
+        path = gtk_tree_row_reference_get_path((GtkTreeRowReference *)row_refs->data);
+        if(gtk_tree_model_get_iter(GTK_TREE_MODEL(list), &row, path)){
+            gtk_list_store_remove(list, &row);    
+        }
+        row_refs = row_refs->next;
+    }
+    gtk_tree_view_set_model(priv->treeview, GTK_TREE_MODEL(list));
+    g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
+    /* TODO: Make this select the next available item in the list */
+}
+
+void
+monocle_thumbpane_remove_current (MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeModel *model;
+    GList *rows;
+    GList *row_refs = NULL;
+
+    model = gtk_tree_view_get_model(priv->treeview);
+    rows = gtk_tree_selection_get_selected_rows(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &model);
+
+    /* convert the list of treepaths into row references */
+    /* avoids WOAH NELLY when we remove */
+    while (rows != NULL){
+        row_refs = g_list_prepend(row_refs, gtk_tree_row_reference_new(model, (GtkTreePath *)rows->data));
+        rows = rows->next;
+    }
+    row_refs = g_list_reverse(row_refs);
+    
+    g_list_foreach (rows, (GFunc) gtk_tree_path_free, NULL);
+    g_list_free (rows);
+
+    monocle_thumbpane_remove_many(self, row_refs);
+    g_list_free(row_refs);
+}
+
 static gboolean
 cb_row_selected (GtkTreeSelection *selection,
                  GtkTreeModel *model,

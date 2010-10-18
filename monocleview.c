@@ -71,8 +71,10 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     GtkWidget *widget        = GTK_WIDGET(self);
     
-    if(priv->monitor_id != 0)
+    if(priv->monitor_id != 0){
         g_source_remove(priv->monitor_id);
+        priv->monitor_id = 0;
+    }
 
     /* Kind of gross looking but a wrapper seems unnecessary */
     if(priv->img != NULL){
@@ -94,6 +96,10 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     }
 
     priv->isanimated = FALSE;
+    gdk_window_clear(GTK_LAYOUT(widget)->bin_window);
+
+    if(filename == NULL)
+        return;
 
     priv->loader = gdk_pixbuf_loader_new();
     g_signal_connect_object(G_OBJECT(priv->loader), "size-prepared",  G_CALLBACK(cb_loader_size_prepared), self, 0);
@@ -106,8 +112,6 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
    
     g_io_channel_set_encoding(priv->io, NULL, NULL);
     priv->monitor_id = g_idle_add((GSourceFunc)write_image_buf, self);
-
-    gdk_window_clear(GTK_LAYOUT(widget)->bin_window);
 }
 
 /* This should be a gobject property but LAZY */
