@@ -8,6 +8,10 @@ Goals:
     "Just Works"
     Lean
 
+License:
+    see LICENSE for monocle code license
+    see md5.c for the license to the code that does the md5summing
+
 Compiling:
     lignucks:
         make

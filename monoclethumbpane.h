@@ -5,6 +5,7 @@
 #include <glib-object.h>
 #include <gtk/gtk.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <glib/gstdio.h>
 #include <stdlib.h>
 
 #define MONOCLE_TYPE_THUMBPANE               (monocle_thumbpane_get_type())
@@ -37,5 +38,11 @@ void monocle_thumbpane_add_folder   (MonocleThumbpane *self, gchar *folder, gboo
 void monocle_thumbpane_removw           (MonocleThumbpane *self, GtkTreeIter *row);
 void monocle_thumbpane_remove_many      (MonocleThumbpane *self, GList *row_refs);
 void monocle_thumbpane_remove_current   (MonocleThumbpane *self);
+
+void monocle_thumbpane_sort_by_name     (MonocleThumbpane *self);
+void monocle_thumbpane_sort_by_date     (MonocleThumbpane *self);
+void monocle_thumbpane_sort_by_size     (MonocleThumbpane *self);
+void monocle_thumbpane_sort_order_ascending      (MonocleThumbpane *self);
+void monocle_thumbpane_sort_order_descending     (MonocleThumbpane *self);
 #endif /*__MONOCLE_THUMBPANE_H__*/
 

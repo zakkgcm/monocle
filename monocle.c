@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <limits.h>
 #include <unistd.h>
 #include <gtk/gtk.h>
 
@@ -27,12 +28,21 @@ static GtkWidget
     return gtk_item_factory_get_widget(item_factory, "<main>");
 }
 
-void cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
+static void
+cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
+    /* what am I even DOING this is absurd */
+    gchar *newtitle;
+    newtitle = g_malloc(strlen(filename) + 11);
+    sprintf(newtitle, "%s - Monocle", filename);
+    gtk_window_set_title(GTK_WINDOW(window), (const gchar *) newtitle); 
+    g_free(newtitle);
+
     monocle_view_set_image(image, filename);
 }
 
 /* File Stuff */
-static void cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+static void
+cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_OPEN,
                                 GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -51,7 +61,8 @@ static void cb_open_file (gpointer callback_data, guint callback_action, GtkWidg
     return;
 }
 
-static void cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+static void
+cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     GtkWidget *recursive_toggle = gtk_check_button_new_with_label("Open Recursively?");
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Folder", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
@@ -76,7 +87,7 @@ static void cb_open_folder (gpointer callback_data, guint callback_action, GtkWi
 }
 
 /* Menu callbacks */
-void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     gfloat scale;
     switch(callback_action) {
         case 0:
@@ -104,15 +115,38 @@ void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *m
     return;
 }
 
+static void
+cb_set_sorting (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+    switch(callback_action) {
+        case 0:
+            monocle_thumbpane_sort_by_name (thumbpane);
+            break;
+        case 1:
+            monocle_thumbpane_sort_by_date (thumbpane);
+            break;
+        case 2:
+            monocle_thumbpane_sort_by_size (thumbpane);
+            break;
+        case 3:
+            monocle_thumbpane_sort_order_ascending (thumbpane);
+            break;
+        case 4:
+            monocle_thumbpane_sort_order_descending (thumbpane);
+            break;
+    }
+    return;
+}
+
 /* Button Callbacks */
-gboolean cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data){
+static gboolean
+cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data){
     if(user_data == 0){
         monocle_thumbpane_remove_current(thumbpane);
     }
     return FALSE;
 }
 
-void usage (){
+static void usage (){
     fprintf(stderr,
             "usage: %s [args] [imagefile/folder]\n"
             "\t-R               Recursively load files from a directory\n"
@@ -129,6 +163,7 @@ int main (int argc, char *argv[]){
     GtkWidget *vbox, *hbox, *vthumbbox, *hthumbbox,
               *menubar, *view_win,
               *thumbadd, *thumbrm;
+    gchar filearg[PATH_MAX+1];
     float scale = 1;
     gboolean recursive_load = FALSE;
 
@@ -211,11 +246,11 @@ int main (int argc, char *argv[]){
     gtk_widget_show_all(window);
     
     if(argc > 1){
-        /*TODO: do some path sanitation or otherwise here */
-        if(g_file_test(argv[argc-1], G_FILE_TEST_IS_DIR))
-            monocle_thumbpane_add_folder(thumbpane, argv[argc-1], recursive_load);
+        realpath(argv[argc-1], filearg); /* ty gmn and GNU info */
+        if(g_file_test(filearg, G_FILE_TEST_IS_DIR))
+            monocle_thumbpane_add_folder(thumbpane, filearg, recursive_load);
         else
-            monocle_thumbpane_add_image(thumbpane, argv[argc-1]);
+            monocle_thumbpane_add_image(thumbpane, filearg);
     }
 
     /* Run Gtk */

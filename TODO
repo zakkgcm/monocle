@@ -15,9 +15,13 @@
 15. image sorting and orginization (ty ed ❤)
 16. convert all the sprintfs to the (supposedly) more secure glib wrappers
 17. proper add/remove system for image list [DONE ish]
-18. file sorting in the list
+18. file sorting in the list [DONE]
 19. multi-select for removal
+20. Convert to pig disgusting GtkUIManager with xml for menus
+21. keyboard shortcuts
+22. intelligently discard invalid images when found (ie if a file cannot be read, image cannot be loaded, etc)
 
 /* These are "feature decisions", stuff to be thought about */
 1. remove button vs press delete key only
 2. hide thumbpane on single image load? option?
+3. aforementioned (22) "intelligent" discarding or plain file extension filtering

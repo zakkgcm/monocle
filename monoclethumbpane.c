@@ -14,6 +14,7 @@
 
 typedef struct _MonocleThumbpanePrivate {
     GtkTreeView *treeview;
+    GtkSortType sort_order;
 } MonocleThumbpanePrivate;
 
 /* Thumbpane keeps a list of the loaded files handy, nothing else really has a use for such a list so there's no need to keep it outside of this widget */
@@ -28,12 +29,23 @@ enum {
 };
 
 enum {
+    SORT_NAME = 0,
+    SORT_DATE,
+    SORT_SIZE
+};
+
+enum {
     CHANGED_SIGNAL,
     LAST_SIGNAL
 };
 
 /*static void monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation);*/
 static gboolean cb_row_selected (GtkTreeSelection *selection, GtkTreeModel *model, GtkTreePath *path, gboolean curpath, gpointer user_data);
+
+static gint cb_sort_func (GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer user_data);
+static gint sort_func_date (gchar *a, gchar *b);
+static gint sort_func_size (gchar *a, gchar *b);
+
 static GdkPixbuf *generate_thumbnail (gchar *filename);
 static gchar *md5sum (gchar *str);
 static gchar *encode_file_uri (gchar *str);
@@ -70,6 +82,12 @@ monocle_thumbpane_init (MonocleThumbpane *self){
     gtk_tree_selection_set_mode(sel, GTK_SELECTION_BROWSE);
     gtk_tree_selection_set_select_function(sel, cb_row_selected, self, NULL);
 
+    gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(list), SORT_NAME, cb_sort_func, GINT_TO_POINTER(SORT_NAME), NULL);
+    gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(list), SORT_DATE, cb_sort_func, GINT_TO_POINTER(SORT_DATE), NULL);
+    gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(list), SORT_SIZE, cb_sort_func, GINT_TO_POINTER(SORT_SIZE), NULL);
+
+    priv->sort_order = GTK_SORT_ASCENDING;
+    gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(list), SORT_NAME, priv->sort_order);
     priv->treeview = GTK_TREE_VIEW(treeview);
     
     gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(priv->treeview)); /*(monocle:10764): Gtk-CRITICAL **: gtk_range_get_adjustment: assertion `GTK_IS_RANGE (range)' failed*/
@@ -140,7 +158,6 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames){
 
 /* Add a whole bunch of images (or just two whichever) from a directory */
 /* it's cool because it can be easily made recursive */
-/* TODO: sorting */
 void
 monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean recursive){
     GDir *folder_tree;
@@ -248,6 +265,51 @@ monocle_thumbpane_remove_current (MonocleThumbpane *self){
     g_list_free(row_refs);
 }
 
+/* These seem redundant, maybe have an arg with some exposed ENUMS or something */
+void
+monocle_thumbpane_sort_by_name (MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(gtk_tree_view_get_model(priv->treeview));
+    gtk_tree_sortable_set_sort_column_id(sortable, SORT_NAME, priv->sort_order);
+}
+
+void
+monocle_thumbpane_sort_by_date (MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(gtk_tree_view_get_model(priv->treeview));
+    gtk_tree_sortable_set_sort_column_id(sortable, SORT_DATE, priv->sort_order);
+}
+
+void
+monocle_thumbpane_sort_by_size (MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(gtk_tree_view_get_model(priv->treeview));
+    gtk_tree_sortable_set_sort_column_id(sortable, SORT_SIZE, priv->sort_order);
+}
+
+/* These are ugly, they look pretty but they're ugly */
+void
+monocle_thumbpane_sort_order_ascending (MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(gtk_tree_view_get_model(priv->treeview));
+    gint sort_type;
+
+    priv->sort_order = GTK_SORT_ASCENDING;
+    gtk_tree_sortable_get_sort_column_id(sortable, &sort_type, NULL);
+    gtk_tree_sortable_set_sort_column_id(sortable, sort_type, priv->sort_order);
+}
+
+void
+monocle_thumbpane_sort_order_descending (MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(gtk_tree_view_get_model(priv->treeview));
+    gint sort_type;
+    
+    priv->sort_order = GTK_SORT_DESCENDING;
+    gtk_tree_sortable_get_sort_column_id(sortable, &sort_type, NULL);
+    gtk_tree_sortable_set_sort_column_id(sortable, sort_type, priv->sort_order);
+}
+
 static gboolean
 cb_row_selected (GtkTreeSelection *selection,
                  GtkTreeModel *model,
@@ -261,7 +323,7 @@ cb_row_selected (GtkTreeSelection *selection,
     gchar *filename;
 
     if(!curpath){
-        /* handle this error */
+        /* handle this error <- what? */
         if(gtk_tree_model_get_iter(model, &iter, path)){
             gtk_tree_model_get(model, &iter, COL_FILENAME, &filename, -1);
             /* I think this is ugly, handler should get the filename itself possibly */
@@ -271,6 +333,69 @@ cb_row_selected (GtkTreeSelection *selection,
     
     return TRUE;
 
+}
+
+/* Sorting Functions */
+static gint
+cb_sort_func (GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer user_data){
+    gint ret = 0;
+    gchar *filea, *fileb;
+    
+    gtk_tree_model_get(model, a, COL_FILENAME, &filea, -1);
+    gtk_tree_model_get(model, b, COL_FILENAME, &fileb, -1);
+
+    if (filea == NULL || fileb == NULL){
+        if (filea == NULL && fileb == NULL)
+            return 0;
+        else if(filea == NULL)
+            return -1;
+        else
+            return 1;
+    }
+
+    switch (GPOINTER_TO_INT(user_data)){
+        case SORT_NAME: {
+            ret = g_ascii_strcasecmp(filea, fileb);
+        }
+        break;
+        case SORT_DATE: {
+            ret = sort_func_date(filea, fileb);
+        }
+        break;
+        case SORT_SIZE: {
+            ret = sort_func_size(filea, fileb);
+        }
+        break;
+    }
+    return ret;
+}
+
+static gint
+sort_func_date (gchar *a, gchar *b){
+    GStatBuf stata, statb;
+    g_stat((const gchar *)a, &stata);
+    g_stat((const gchar *)b, &statb);
+
+    if(stata.st_mtime == statb.st_mtime)
+        return 0;
+    else if(stata.st_mtime > statb.st_mtime)
+        return 1;
+    else
+        return -1;
+}
+
+static gint
+sort_func_size (gchar *a, gchar *b){
+    GStatBuf stata, statb;
+    g_stat((const gchar *)a, &stata);
+    g_stat((const gchar *)b, &statb);
+
+    if(stata.st_size == statb.st_size)
+        return 0;
+    else if(stata.st_size > statb.st_size)
+        return 1;
+    else
+        return -1;
 }
 
 /* TODO: move this to another thread or idle loop */
