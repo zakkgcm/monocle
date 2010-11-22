@@ -7,7 +7,7 @@
 6. Add film-roll like image selector [DONE]
 7. Add Zoom-in-to-fit and Zoom-out-to-fit
 8. Add a customizable background to be used for transparent images (checkerboard, black, white)
-9. Threading for things like scaling or thumbnail production
+9. Threading for things like scaling or thumbnail production [PARTIAL]
 11. pad thumbnails with vertical space (if need be)
 12. preloading
 13. faster image loading
@@ -20,6 +20,8 @@
 20. Convert to pig disgusting GtkUIManager with xml for menus
 21. keyboard shortcuts
 22. intelligently discard invalid images when found (ie if a file cannot be read, image cannot be loaded, etc)
+23. fix stupid compiler warnings
+24. thumbnail generation priority
 
 /* These are "feature decisions", stuff to be thought about */
 1. remove button vs press delete key only

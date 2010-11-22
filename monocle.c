@@ -32,10 +32,15 @@ static void
 cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
     /* what am I even DOING this is absurd */
     gchar *newtitle;
-    newtitle = g_malloc(strlen(filename) + 11);
-    sprintf(newtitle, "%s - Monocle", filename);
-    gtk_window_set_title(GTK_WINDOW(window), (const gchar *) newtitle); 
-    g_free(newtitle);
+    
+    if(filename != NULL ){
+        newtitle = g_malloc(strlen(filename) + 11);
+        sprintf(newtitle, "%s - Monocle", filename);
+        gtk_window_set_title(GTK_WINDOW(window), (const gchar *) newtitle);
+        g_free(newtitle);
+    }else{
+        gtk_window_set_title(GTK_WINDOW(window), "NOTHING - Monocle");
+    }
 
     monocle_view_set_image(image, filename);
 }
@@ -195,6 +200,9 @@ int main (int argc, char *argv[]){
 
     /* Gtk Setup */
     gtk_init(&argc, &argv);
+    g_thread_init(NULL);
+    gdk_threads_init();
+
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     g_signal_connect(G_OBJECT(window), "delete_event", G_CALLBACK(gtk_main_quit), NULL);
     gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
@@ -247,14 +255,22 @@ int main (int argc, char *argv[]){
     
     if(argc > 1){
         realpath(argv[argc-1], filearg); /* ty gmn and GNU info */
-        if(g_file_test(filearg, G_FILE_TEST_IS_DIR))
+        /* am I even supposed to wrap these in enter/leave? supposedly since they're called outside of a callback I do */
+        if(g_file_test(filearg, G_FILE_TEST_IS_DIR)){
+            gdk_threads_enter();
             monocle_thumbpane_add_folder(thumbpane, filearg, recursive_load);
-        else
+            gdk_threads_leave();
+        }else{
+            gdk_threads_enter();
             monocle_thumbpane_add_image(thumbpane, filearg);
+            gdk_threads_leave();
+        }
     }
 
     /* Run Gtk */
+    gdk_threads_enter();
     gtk_main();
+    gdk_threads_leave();
     
     return EXIT_SUCCESS;
 }

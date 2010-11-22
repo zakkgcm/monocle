@@ -6,7 +6,7 @@ use GTK for user interface for consistency
 Goals:
     Asynchronosity, no gooey freezing up when loading or scaling big hueg image
     "Just Works"
-    Lean
+    Lean as in Pocket
 
 License:
     see LICENSE for monocle code license
@@ -16,7 +16,7 @@ Compiling:
     lignucks:
         make
         there is no step 2
-    windowez:
+    windowez [not supported yet]:
         get mingw
         edit config.mk to point to the proper mingw dir
         make
@@ -35,4 +35,4 @@ Usage:
 
 Quirks (aka unfixed things that aren't quite bugs):
     "Open Folder" will try to load the whole folder, images or not
-    Thumbnails aren't generated, only pre-generated ones are loaded
+    Thumbnails aren't saved yet
