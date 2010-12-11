@@ -28,6 +28,10 @@ GType monocle_view_get_type (void);
 
 void monocle_view_set_image (MonocleView *self, gchar *filename);
 void monocle_view_set_scale (MonocleView *self, gfloat scale);
+void monocle_view_set_scale_gifs (MonocleView *self, gboolean scale_gifs);
+
+gboolean monocle_view_get_scale_gifs (MonocleView *self);
+
 void monocle_view_scale_image (MonocleView *self, gfloat scale);
 #endif /*__MONOCLE_VIEW_H__*/
 

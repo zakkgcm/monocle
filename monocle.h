@@ -8,17 +8,25 @@
 
 static const char *__progname = PROGNAME;
 
+static gboolean monocle_quit   ();
+
 static void cb_open_file   (gpointer callback_data, guint callback_action, GtkWidget *menu_item);
 static void cb_open_folder   (gpointer callback_data, guint callback_action, GtkWidget *menu_item);
 static void cb_set_sorting (gpointer callback_data, guint callback_action, GtkWidget *menu_item);
 static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item);
+static void cb_preferences_dialog (gpointer callback_data, guint callback_action, GtkWidget *menu_item);
+
 static gboolean cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data);
 
 static GtkItemFactoryEntry mainmenu_items[] = {
   { "/_File",               NULL,         NULL,                 0, "<Branch>" },
   { "/File/_Open",          "<control>O", cb_open_file,         0, NULL },
   { "/File/_Open Folder",   NULL,         cb_open_folder,       0, NULL },
-  { "/File/Quit",           "<control>Q", gtk_main_quit,        0, NULL },
+  { "/File/Quit",           "<control>Q", monocle_quit,         0, NULL },
+  
+  { "/_Edit",               NULL,         NULL,                 0, "<Branch>" },
+  { "/Edit/Preferences",    NULL,         cb_preferences_dialog,0, NULL },
+  
   { "/_View",               NULL,         NULL,                 0, "<Branch>" },
   { "/View/Fit to Window",  NULL,         cb_scale_image,       0, NULL},
   { "/View/Zoom 1x",        NULL,         cb_scale_image,       1, NULL},
@@ -26,8 +34,8 @@ static GtkItemFactoryEntry mainmenu_items[] = {
   { "/View/Zoom In 4x",     NULL,         cb_scale_image,       5, NULL},
   { "/View/Zoom Out 2x",    NULL,         cb_scale_image,       2, NULL},
   { "/View/Zoom Out 4x",    NULL,         cb_scale_image,       3, NULL},
-  { "/_Sort",               NULL,         NULL,                 0, "<Branch>" },
   
+  { "/_Sort",               NULL,         NULL,                 0, "<Branch>" },
   { "/Sort/Sort By Name",                NULL,         cb_set_sorting,       0, "<RadioItem>"},
   { "/Sort/Sort By Modification Date",   NULL,         cb_set_sorting,       1, "/Sort/Sort By Name"},
   { "/Sort/Sort By Size",                NULL,         cb_set_sorting,       2, "/Sort/Sort By Name"},

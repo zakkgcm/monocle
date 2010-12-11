@@ -15,7 +15,10 @@
 typedef struct _MonocleThumbpanePrivate {
     GtkTreeView *treeview;
     GtkSortType sort_order;
+
     GThreadPool *pool;
+    gint num_threads;
+
     GdkPixbuf *default_thumb;
 } MonocleThumbpanePrivate;
 
@@ -96,6 +99,8 @@ monocle_thumbpane_init (MonocleThumbpane *self){
     
     gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(priv->treeview)); /*(monocle:10764): Gtk-CRITICAL **: gtk_range_get_adjustment: assertion `GTK_IS_RANGE (range)' failed*/
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(self), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    
+    priv->num_threads = 2;
 
     /* this WILL fail horribly if there is no mystery to be found */
     priv->default_thumb = g_file_test("./Itisamystery.gif", G_FILE_TEST_IS_REGULAR)
@@ -151,7 +156,7 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames){
         /* TODO: make the deadpool free itself when finished (after some certain idle time maybe) */
         /* LOOK! LOOK! THERE IS THE DEADPOOL! */
         g_thread_pool_set_max_idle_time(100);
-        priv->pool = g_thread_pool_new((GFunc)thumbnail_thread, NULL, 4, FALSE, NULL);
+        priv->pool = g_thread_pool_new((GFunc)thumbnail_thread, NULL, priv->num_threads, FALSE, NULL);
     }
     
     list = GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview));
@@ -353,6 +358,19 @@ monocle_thumbpane_sort_order_descending (MonocleThumbpane *self){
     priv->sort_order = GTK_SORT_DESCENDING;
     gtk_tree_sortable_get_sort_column_id(sortable, &sort_type, NULL);
     gtk_tree_sortable_set_sort_column_id(sortable, sort_type, priv->sort_order);
+}
+
+void
+monocle_thumbpane_set_num_threads (MonocleThumbpane *self, gint num_threads){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    priv->num_threads = num_threads > 0 ? num_threads : 1;
+    return;
+}
+
+gint
+monocle_thumbpane_get_num_threads (MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    return priv->num_threads;
 }
 
 static gboolean

@@ -28,6 +28,97 @@ static GtkWidget
     return gtk_item_factory_get_widget(item_factory, "<main>");
 }
 
+/* loads the config file warn the user then move along if something goes wrong */
+/* i'd imagine there's a cleaner way to do this */
+static void
+load_config (){
+    GKeyFile *config;
+    gchar *config_file;
+
+    gint conf_threads;
+    gboolean conf_scalegifs;
+
+    GError *error = NULL;
+
+    config_file = g_build_filename(g_get_user_config_dir(), "monocle/", "monocle.conf", NULL);
+    
+    if(g_file_test(config_file, G_FILE_TEST_EXISTS)){
+        config = g_key_file_new();
+
+        if(!g_key_file_load_from_file(config, config_file, G_KEY_FILE_NONE, &error)){
+            /* something went wrong besides there not being a config file */
+            if(!g_error_matches(error, G_FILE_ERROR, G_FILE_ERROR_NOENT))
+                printf("[monocle] problem when parsing config: %s\n", error->message);
+
+            g_clear_error(&error);
+            return;
+        }
+
+        /* grab necessary keys and load them into appropriate widgets */
+        if((conf_threads = g_key_file_get_integer(config, "monocle", "threads", &error)) <= 0){
+            conf_threads = 1;
+            g_clear_error(&error);
+        }
+        monocle_thumbpane_set_num_threads(thumbpane, conf_threads);
+
+        conf_scalegifs = g_key_file_get_boolean(config, "monocle", "scalegifs", &error);
+        g_clear_error(&error);
+        monocle_view_set_scale_gifs(image, conf_scalegifs);
+
+         g_key_file_free(config);
+    }
+
+    /*if((config_keys = g_key_file_get_keys(config, "monocle", NULL, error)) == NULL){
+        printf("[[monocle] problem when loading config: %s\n", error->message);
+        g_clear_error(error);
+    }
+
+    for(i = 0; i <= LENGTH(config_keys); i++){
+        if(strcmp(config_keys[i], "scale") == 0){
+            monocle_view_set_scale(image, g_key_file_get_double (config, "monocle", config_keys[i], error));
+        }
+    }*/
+
+    g_free(config_file);
+}
+
+static void
+save_config (){
+    GKeyFile *config;
+
+    gchar *config_dir;
+    gchar *config_file;
+    gchar *config_buf;
+
+    FILE *config_fd;
+    int bytes_written;
+
+    config_dir = g_build_filename(g_get_user_config_dir(), "monocle/", NULL);
+    g_mkdir_with_parents(config_dir, 0755);
+
+    config_file = g_build_filename(config_dir, "monocle.conf", NULL);
+    config = g_key_file_new();
+
+    g_key_file_set_integer(config, "monocle", "threads", monocle_thumbpane_get_num_threads(thumbpane));
+    g_key_file_set_boolean(config, "monocle", "scalegifs", monocle_view_get_scale_gifs(image));
+
+    config_buf = g_key_file_to_data(config, NULL, NULL);
+    
+    if((config_fd = fopen(config_file, "w")) == NULL){
+        printf("failed to write config file at %s\n", config_file);
+    }else{
+        bytes_written = fwrite(config_buf, sizeof(char), strlen(config_buf), config_fd);
+        if(bytes_written != strlen(config_buf))
+            printf("error writing to config file at %s\n", config_file);
+
+        fclose(config_fd);
+    }
+
+    g_free(config_buf);
+    g_free(config_file);
+    g_free(config_dir);
+}
+
 static void
 cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
     /* what am I even DOING this is absurd */
@@ -91,6 +182,37 @@ cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_i
     return;
 }
 
+static void
+cb_preferences_dialog (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+    GtkWidget *preferences, *content_area, *table, *spin_threads, *check_scalegifs;
+    preferences = gtk_dialog_new_with_buttons("Monocle Preferences", GTK_WINDOW(window),
+                                    GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
+                                    GTK_STOCK_CLOSE, NULL);
+
+    content_area = gtk_dialog_get_content_area (GTK_DIALOG(preferences));
+    table = gtk_table_new(10, 2, FALSE);
+
+    spin_threads = gtk_spin_button_new_with_range (1, 1000, 1);
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin_threads), (gdouble)monocle_thumbpane_get_num_threads(thumbpane));
+
+    check_scalegifs = gtk_check_button_new_with_label ("Scale Gifs");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_scalegifs), monocle_view_get_scale_gifs(image));
+
+    gtk_table_attach(GTK_TABLE(table), gtk_label_new("Thumbnailing Threads"), 0, 1, 0, 1, GTK_EXPAND|GTK_FILL, GTK_SHRINK, 5, 1);
+    gtk_table_attach(GTK_TABLE(table), spin_threads, 1, 2, 0, 1, GTK_SHRINK, GTK_EXPAND|GTK_FILL, 0, 0);
+    gtk_table_attach(GTK_TABLE(table), check_scalegifs, 0, 1, 2, 3, GTK_EXPAND|GTK_FILL, GTK_EXPAND|GTK_FILL, 0, 0);
+   
+    gtk_container_add(GTK_CONTAINER(content_area), table);
+    gtk_widget_show_all(content_area);
+    
+    gtk_dialog_run(GTK_DIALOG(preferences));
+
+    monocle_thumbpane_set_num_threads(thumbpane, gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_threads)));
+    monocle_view_set_scale_gifs(image, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_scalegifs)));
+    gtk_widget_destroy(preferences);
+    return;
+}
+
 /* Menu callbacks */
 static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     gfloat scale;
@@ -98,7 +220,7 @@ static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWi
         case 0:
             scale = 0;
             break;
-        case 1:
+
             scale = 1.0;
             break;
         case 2:
@@ -163,6 +285,13 @@ static void usage (){
     exit(EXIT_FAILURE);
 }
 
+/* returns true so we can save the config */
+/* runs twice for some reason */
+static gboolean monocle_quit (){
+    save_config();
+    gtk_main_quit();
+    return TRUE;
+}
 
 int main (int argc, char *argv[]){
     GtkWidget *vbox, *hbox, *vthumbbox, *hthumbbox,
@@ -204,7 +333,7 @@ int main (int argc, char *argv[]){
     gdk_threads_init();
 
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-    g_signal_connect(G_OBJECT(window), "delete_event", G_CALLBACK(gtk_main_quit), NULL);
+    g_signal_connect(G_OBJECT(window), "delete_event", G_CALLBACK(monocle_quit), NULL);
     gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
 
     /* Thumbpane VBox and Buttons */
@@ -218,7 +347,6 @@ int main (int argc, char *argv[]){
 
     g_signal_connect(G_OBJECT(thumbadd), "button-release-event", G_CALLBACK(cb_thumbpane_addrmbutton), GINT_TO_POINTER(1));
     g_signal_connect(G_OBJECT(thumbrm), "button-release-event", G_CALLBACK(cb_thumbpane_addrmbutton), GINT_TO_POINTER(0));
- 
 
     gtk_box_pack_start(GTK_BOX(hthumbbox), thumbadd, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX(hthumbbox), thumbrm, FALSE, FALSE, 0);
@@ -240,6 +368,9 @@ int main (int argc, char *argv[]){
     
     gtk_widget_set_size_request(GTK_WIDGET(thumbpane), 150, -1);
 
+    /* We've made our widgets, load config */
+    load_config();
+
     /* Contain the MonocleView */
     view_win      = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(view_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
@@ -252,7 +383,7 @@ int main (int argc, char *argv[]){
     gtk_box_pack_end(GTK_BOX (hbox), GTK_WIDGET(view_win), TRUE, TRUE, 0);
 
     gtk_widget_show_all(window);
-    
+
     if(argc > 1){
         realpath(argv[argc-1], filearg); /* ty gmn and GNU info */
         /* am I even supposed to wrap these in enter/leave? supposedly since they're called outside of a callback I do */
@@ -272,5 +403,6 @@ int main (int argc, char *argv[]){
     gtk_main();
     gdk_threads_leave();
     
+    save_config();
     return EXIT_SUCCESS;
 }

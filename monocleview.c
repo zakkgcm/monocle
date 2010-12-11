@@ -22,6 +22,8 @@ typedef struct _MonocleViewPrivate {
     GdkPixbufAnimationIter *iter;
 
     gboolean isanimated;
+    gboolean scale_gifs;
+
     gint     monitor_id;
     gfloat   scale;
 } MonocleViewPrivate;
@@ -51,6 +53,7 @@ monocle_view_init( MonocleView *self ){
     priv->scale      = 0;
     priv->monitor_id = 0;
     priv->isanimated = FALSE;
+    priv->scale_gifs = FALSE;
     
     gdk_color_parse("black", &black);
     gtk_widget_modify_bg(GTK_WIDGET(self), GTK_STATE_NORMAL, &black);
@@ -120,6 +123,19 @@ monocle_view_set_scale( MonocleView *self, gfloat scale ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
     priv->scale = scale;
     return;
+}
+
+void
+monocle_view_set_scale_gifs( MonocleView *self, gboolean scale_gifs ){
+    MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
+    priv->scale_gifs = scale_gifs;
+    return;
+}
+
+gboolean
+monocle_view_get_scale_gifs( MonocleView *self ){
+    MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
+    return priv->scale_gifs;
 }
 
 /* UGLY AS BUTTS CODE */
@@ -231,7 +247,10 @@ cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
     g_object_unref(priv->loader);
     priv->loader = NULL;
 
-    monocle_view_scale_image(self, priv->scale);
+    /* might have confused myself here */
+    if(!priv->isanimated || (priv->isanimated && priv->scale_gifs))
+        monocle_view_scale_image(self, priv->scale);
+
     redraw_image(self, 0, 0, -1, -1);
 }
 
@@ -249,7 +268,8 @@ cb_advance_anim( MonocleView *self ){
     priv->oimg  = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter); /* I know the docs say to copy this but that mem leaks */
     priv->img = g_object_ref(priv->oimg);
 
-    monocle_view_scale_image(self, priv->scale);
+    if(priv->scale_gifs)
+        monocle_view_scale_image(self, priv->scale);
     
     g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
 

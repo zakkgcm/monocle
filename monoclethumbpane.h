@@ -35,7 +35,7 @@ void monocle_thumbpane_add_image    (MonocleThumbpane *self, gchar *filename);
 void monocle_thumbpane_add_many     (MonocleThumbpane *self, GSList *filenames);
 void monocle_thumbpane_add_folder   (MonocleThumbpane *self, gchar *folder, gboolean recursive);
 
-void monocle_thumbpane_removw           (MonocleThumbpane *self, GtkTreeIter *row);
+void monocle_thumbpane_remove           (MonocleThumbpane *self, GtkTreeIter *row);
 void monocle_thumbpane_remove_many      (MonocleThumbpane *self, GList *row_refs);
 void monocle_thumbpane_remove_current   (MonocleThumbpane *self);
 
@@ -44,5 +44,8 @@ void monocle_thumbpane_sort_by_date     (MonocleThumbpane *self);
 void monocle_thumbpane_sort_by_size     (MonocleThumbpane *self);
 void monocle_thumbpane_sort_order_ascending      (MonocleThumbpane *self);
 void monocle_thumbpane_sort_order_descending     (MonocleThumbpane *self);
+
+void monocle_thumbpane_set_num_threads (MonocleThumbpane *self, gint num_threads);
+gint monocle_thumbpane_get_num_threads (MonocleThumbpane *self);
 #endif /*__MONOCLE_THUMBPANE_H__*/
 
