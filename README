@@ -35,4 +35,3 @@ Usage:
 
 Quirks (aka unfixed things that aren't quite bugs):
     "Open Folder" will try to load the whole folder, images or not
-    Thumbnails aren't saved yet

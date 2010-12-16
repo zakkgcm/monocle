@@ -1,4 +1,4 @@
-f = fixed, r = reopened
+f = fixed, r = reopened, f(?) = haven't run into it (probably involves threading)
 
 [f] animations don't work
 [ ] animations cease to play when the scale becomes ridiculously huge
@@ -17,8 +17,8 @@ f = fixed, r = reopened
 [f] fit-to-window is broked
 [ ] fit-to-window infinite loops during size allocate
 [f] commandline filepath arguments break thumbnail loading (trailing slash, relative paths)
-[ ] segfault when removing an image half-way through loading or when the imagelist is empty (same bug probably)
+[f] segfault when removing an image half-way through loading or when the imagelist is empty (same bug probably)
 [ ] flash of some garbage data when flipping through images
-[ ] (monocle:30680): Gtk-WARNING **: gtktreemodel.c:2117: bad row reference, proxy has no outstanding row references <- ???
-[ ] segfault occasionally probably because of threading
-[ ] while testing ran into deadlocks in gdb, couldn't reproduce outside of gdb though
+[f(?)] (monocle:30680): Gtk-WARNING **: gtktreemodel.c:2117: bad row reference, proxy has no outstanding row references <- ???
+[f(?)] segfault occasionally probably because of threading
+[f(?)] while testing ran into deadlocks in gdb, couldn't reproduce outside of gdb though

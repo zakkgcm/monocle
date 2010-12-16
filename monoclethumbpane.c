@@ -151,6 +151,7 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames){
     /*GdkPixbuf *thumb;*/
     GtkListStore *list;
     GtkTreeIter row;
+    gchar *iterstring;
     
     if(priv->pool == NULL){
         /* TODO: make the deadpool free itself when finished (after some certain idle time maybe) */
@@ -177,14 +178,12 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames){
 
         /* POOL POOL */
         /* do I need to wrap this with threads leave/enter? */
+        iterstring = gtk_tree_model_get_string_from_iter(GTK_TREE_MODEL(list), &row);
         g_thread_pool_push(priv->pool,
-                            (gpointer)gtk_tree_row_reference_new(GTK_TREE_MODEL(list),
-                              gtk_tree_path_new_from_string(
-                                  gtk_tree_model_get_string_from_iter(GTK_TREE_MODEL(list), &row)
-                              )
-                            ), 
+                            (gpointer)gtk_tree_row_reference_new(GTK_TREE_MODEL(list), gtk_tree_path_new_from_string(iterstring)), 
                             NULL);
-        
+        g_free(iterstring);
+
         /*gtk_list_store_set(list, &row, COL_THUMBNAIL, thumb, -1);*/
         /*g_object_unref(thumb);*/
     } while ((filenames = g_slist_next(filenames)) != NULL);
@@ -391,9 +390,10 @@ cb_row_selected (GtkTreeSelection *selection,
             gtk_tree_model_get(model, &iter, COL_FILENAME, &filename, -1);
             /* I think this is ugly, handler should get the filename itself possibly */
             g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, filename);
+            g_free(filename);
         }
     }
-    
+   
     return TRUE;
 
 }
@@ -409,27 +409,33 @@ cb_sort_func (GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer user
 
     if (filea == NULL || fileb == NULL){
         if (filea == NULL && fileb == NULL)
-            return 0;
+            ret = 0;
         else if(filea == NULL)
-            return -1;
+            ret = -1;
         else
-            return 1;
+            ret = 1;
+    }else{
+        switch (GPOINTER_TO_INT(user_data)){
+            case SORT_NAME: {
+                ret = g_ascii_strcasecmp(filea, fileb);
+            }
+            break;
+            case SORT_DATE: {
+                ret = sort_func_date(filea, fileb);
+            }
+            break;
+            case SORT_SIZE: {
+                ret = sort_func_size(filea, fileb);
+            }
+            break;
+        }
     }
-
-    switch (GPOINTER_TO_INT(user_data)){
-        case SORT_NAME: {
-            ret = g_ascii_strcasecmp(filea, fileb);
-        }
-        break;
-        case SORT_DATE: {
-            ret = sort_func_date(filea, fileb);
-        }
-        break;
-        case SORT_SIZE: {
-            ret = sort_func_size(filea, fileb);
-        }
-        break;
-    }
+    
+    if(filea != NULL)
+        g_free(filea);
+    if(fileb != NULL)
+        g_free(fileb);
+    
     return ret;
 }
 

@@ -74,8 +74,18 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     GtkWidget *widget        = GTK_WIDGET(self);
     
+    /* if we were in the middle of loading an image, clean up */
     if(priv->monitor_id != 0){
         g_source_remove(priv->monitor_id);
+        
+        if(priv->loader != NULL){
+            gdk_pixbuf_loader_close(priv->loader, NULL);
+            priv->loader = NULL;
+        }
+
+        g_io_channel_shutdown(priv->io, TRUE, NULL);
+        g_io_channel_unref(priv->io);
+        priv->io = NULL;
         priv->monitor_id = 0;
     }
 
@@ -121,7 +131,14 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
 void
 monocle_view_set_scale( MonocleView *self, gfloat scale ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
-    priv->scale = scale;
+    
+    if(scale < 0 && (scale != MONOCLE_SCALE_FIT || scale != MONOCLE_SCALE_ZOOMFIT))
+        priv->scale = 1.0;
+    else
+        priv->scale = scale;
+    
+    if(priv->oimg != NULL)
+        monocle_view_scale_image(self);
     return;
 }
 
@@ -138,34 +155,32 @@ monocle_view_get_scale_gifs( MonocleView *self ){
     return priv->scale_gifs;
 }
 
-/* UGLY AS BUTTS CODE */
+/* only needs to be called upon change of scale or image, as such, it doesn't check if the image is already scaled */
 void
-monocle_view_scale_image( MonocleView *self, gfloat scale ){
+monocle_view_scale_image( MonocleView *self ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
     GtkWidget          *widget = GTK_WIDGET(self);
+    
+    gfloat scale = priv->scale;
+    gint pwidth, pheight, swidth, sheight;
 
-    gint pwidth  = gdk_pixbuf_get_width(priv->oimg);
-    gint pheight = gdk_pixbuf_get_height(priv->oimg);
-    gint swidth, sheight;
+    pwidth  = gdk_pixbuf_get_width(priv->oimg);
+    pheight = gdk_pixbuf_get_height(priv->oimg);
 
-    /* A scale of < 0 means fit to window */
-    /* change this to some kind of constant like MONOCLE_VIEW_SCALE_FIT or something */
-    if(scale > 0){
-        priv->scale = scale;
-    }else{
-        priv->scale = 0;
+    /* these really are just negative values in a define */
+    if(priv->scale == MONOCLE_SCALE_FIT)
         scale = (pwidth > pheight) ? (double)widget->allocation.width/pwidth : (double)widget->allocation.height/pheight;
-    }
-
+    
     swidth  = (int)(pwidth * scale);
     sheight = (int)(pheight * scale);
-    if((swidth == pwidth || sheight == pheight) && scale != 1) /* WOOT ARE YA DOOIN YEH NINNY */
-        return;
-
+    
     if(priv->img != NULL)
         g_object_unref(priv->img);
-
-    priv->img = gdk_pixbuf_scale_simple(priv->oimg, swidth, sheight, GDK_INTERP_BILINEAR); /* make asynchronous */
+   
+    if(scale == 1)
+        priv->img = g_object_ref(priv->oimg);
+    else
+        priv->img = gdk_pixbuf_scale_simple(priv->oimg, swidth, sheight, GDK_INTERP_BILINEAR); /* make asynchronous */
     
     gtk_layout_set_size(GTK_LAYOUT(self), gdk_pixbuf_get_width(priv->img), gdk_pixbuf_get_height(priv->img));
     redraw_image(self, 0, 0, -1, -1);
@@ -244,13 +259,14 @@ cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
         priv->anim = NULL;
     }
     
+    /*g_object_unref(priv->oimg);*/
     g_object_unref(priv->loader);
     priv->loader = NULL;
 
     /* might have confused myself here */
-    if(!priv->isanimated || (priv->isanimated && priv->scale_gifs))
+/*    if(!priv->isanimated || (priv->isanimated && priv->scale_gifs))
         monocle_view_scale_image(self, priv->scale);
-
+*/    
     redraw_image(self, 0, 0, -1, -1);
 }
 
@@ -269,7 +285,7 @@ cb_advance_anim( MonocleView *self ){
     priv->img = g_object_ref(priv->oimg);
 
     if(priv->scale_gifs)
-        monocle_view_scale_image(self, priv->scale);
+        monocle_view_scale_image(self);
     
     g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
 
@@ -283,7 +299,7 @@ redraw_image( MonocleView *self, gint x, gint y, gint width, gint height ){
     GtkWidget *widget        = GTK_WIDGET(self);
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     GdkRectangle region, pregion;
-    
+
     if(!priv->img || !priv->oimg)
         return;
 

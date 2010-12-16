@@ -218,7 +218,7 @@ static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWi
     gfloat scale;
     switch(callback_action) {
         case 0:
-            scale = 0;
+            scale = MONOCLE_SCALE_FIT;
             break;
 
             scale = 1.0;
@@ -230,15 +230,15 @@ static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWi
             scale = 0.25;
             break;
         case 4:
-            scale = 2;
+            scale = 2.0;
             break;
         case 5:
-            scale = 4;
+            scale = 4.0;
             break;
         default:
             scale = 1.0;
     }
-    monocle_view_scale_image(image, scale);
+    monocle_view_set_scale(image, scale);
     return;
 }
 
@@ -310,13 +310,13 @@ int main (int argc, char *argv[]){
                 break;
             case 's':
                 if(!strcmp(optarg, "fit")){
-                    scale = 0;
+                    scale = MONOCLE_SCALE_FIT;
                     printf("Setting scale to fit to window\n");
                 }else if(atof(optarg) > 0){ 
                     scale = atof(optarg);
                     printf("Setting scale to %.1f\n", scale);
                 }else{
-                    printf("Unknown scale %s, defaulting to fit to window\n", optarg);
+                    printf("Unknown scale %s, defaulting to 1\n", optarg);
                 }
                 break;
             case 'v':
