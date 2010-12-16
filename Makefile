@@ -35,6 +35,8 @@ monocle: options ${OBJ}
 monocle.exe: ${W32OBJ}
 	@echo ${W32CC} ${W32OBJ} -o $@
 	@${W32CC} ${W32OBJ} ${W32LDFLAGS} -o $@
+	@echo "stripping binary (don't peek)"
+	strip -s $@
 
 install: monocle
 	@echo "installing monocle to ${INSTALLDIR}"
@@ -42,6 +44,7 @@ install: monocle
 	install -d ${INSTALLDIR}/share/monocle/
 	install -m644 Itisamystery.gif ${INSTALLDIR}/share/monocle/
 	install -m755 monocle ${INSTALLDIR}/bin
+	strip -s ${INSTALLDIR}/bin/monocle
 	
 uninstall: monocle
 	@echo "uninstalling monocle from ${INSTALLDIR}"

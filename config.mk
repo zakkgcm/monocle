@@ -2,7 +2,7 @@
 # cheeseum 2010
 
 PROGNAME = monocle
-VERSION  = 1.3
+VERSION  = 1.4
 
 PREFIX     ?= /usr
 INSTALLDIR ?= ${DESTDIR}${PREFIX}
@@ -14,7 +14,7 @@ GTK_LDFLAGS = $(shell $(PKG_CONFIG) --libs gtk+-2.0)
 DEBUGFLAGS = -ggdb -ggdb3
 CFLAGS	= -O3 -march=native -lgthread-2.0 -pedantic -Wall -DVERSION=\"${VERSION}\"  -DPROGNAME=\"${PROGNAME}\" ${GTK_CFLAGS}
 CFLAGS  += ${DEBUGFLAGS} #comment this out to remove debugging symbols
-LDFLAGS = -pthread ${GTK_LDFLAGS}
+LDFLAGS = -Wl ${GTK_LDFLAGS}
 
 # Change this to your mingw environment dir
 W32 = /home/cheeseum/src/mingw32/mingw-cross-env-2.15/usr/bin/i686-pc-mingw32
