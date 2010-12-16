@@ -78,11 +78,7 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
     if(priv->monitor_id != 0){
         g_source_remove(priv->monitor_id);
         
-        if(priv->loader != NULL){
-            gdk_pixbuf_loader_close(priv->loader, NULL);
-            priv->loader = NULL;
-        }
-
+        gdk_pixbuf_loader_close(priv->loader, NULL);
         g_io_channel_shutdown(priv->io, TRUE, NULL);
         g_io_channel_unref(priv->io);
         priv->io = NULL;
@@ -247,6 +243,12 @@ cb_loader_area_updated( GdkPixbufLoader *loader, gint x, gint y, gint width, gin
 static void
 cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
+    
+    g_object_unref(priv->loader);
+    priv->loader = NULL;
+
+    if(priv->anim == NULL || priv->oimg == NULL)
+        return;
 
     if(priv->isanimated){
         g_object_ref(priv->anim);
@@ -259,14 +261,10 @@ cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
         priv->anim = NULL;
     }
     
-    /*g_object_unref(priv->oimg);*/
-    g_object_unref(priv->loader);
-    priv->loader = NULL;
-
     /* might have confused myself here */
-/*    if(!priv->isanimated || (priv->isanimated && priv->scale_gifs))
-        monocle_view_scale_image(self, priv->scale);
-*/    
+    if(!priv->isanimated || (priv->isanimated && priv->scale_gifs))
+        monocle_view_scale_image(self);
+    
     redraw_image(self, 0, 0, -1, -1);
 }
 

@@ -13,8 +13,8 @@
 #define MONOCLE_IS_VIEW_CLASS(klass)    (G_TYPE_CHECK_VLASS_TYPE ((klass), MONOCLE_TYPE_VIEW))
 #define MONOCLE_VIEW_GET_CLASS(obj)     (G_TYPE_INSTANCE_GET_CLASS ((obj), MONOCLE_TYPE_VIEW, MonocleViewClass))
 
-#define MONOCLE_SCALE_FIT -1
-#define MONOCLE_SCALE_ZOOMFIT -2
+#define MONOCLE_SCALE_FIT -1.0
+#define MONOCLE_SCALE_ZOOMFIT -2.0
 
 typedef struct _MonocleView         MonocleView;
 typedef struct _MonocleViewClass    MonocleViewClass;
