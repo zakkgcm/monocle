@@ -3,6 +3,7 @@
  * author: cheeseum
  * license: see LICENSE
  */
+#include <math.h>
 #include "monocleview.h"
 
 #define BUFSIZE 4096
@@ -128,7 +129,9 @@ void
 monocle_view_set_scale( MonocleView *self, gfloat scale ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
     
-    if(scale < 0 && (scale != MONOCLE_SCALE_FIT || scale != MONOCLE_SCALE_ZOOMFIT))
+    scale = (gfloat)round(scale*10)/10;
+    
+    if(scale <= 0.0 && ((int)scale != MONOCLE_SCALE_FIT && (int)scale != MONOCLE_SCALE_ZOOMFIT))
         priv->scale = 1.0;
     else
         priv->scale = scale;

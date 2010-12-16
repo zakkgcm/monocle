@@ -220,7 +220,7 @@ static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWi
         case 0:
             scale = MONOCLE_SCALE_FIT;
             break;
-
+        case 1:
             scale = 1.0;
             break;
         case 2:
