@@ -16,11 +16,10 @@ Compiling:
     lignucks:
         make
         there is no step 2
-    windowez [not supported yet]:
+    windowez:
         get mingw
         edit config.mk to point to the proper mingw dir
         make
-        try to run it and realize there is no support for Thumbs.db
 
 Usage:
     monocle [options] [file or folder]

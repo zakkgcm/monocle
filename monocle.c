@@ -385,7 +385,11 @@ int main (int argc, char *argv[]){
     gtk_widget_show_all(window);
 
     if(argc > 1){
+#ifdef WIN32
+        strcpy(filearg, argv[argc-1]);
+#else
         realpath(argv[argc-1], filearg); /* ty gmn and GNU info */
+#endif
         /* am I even supposed to wrap these in enter/leave? supposedly since they're called outside of a callback I do */
         if(g_file_test(filearg, G_FILE_TEST_IS_DIR)){
             gdk_threads_enter();

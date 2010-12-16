@@ -24,18 +24,17 @@ options:
 	@echo ${CC} $<
 	@${CC} -c ${CFLAGS} $< -o $@
 
-#%-w32.o: %.c
-#	@echo ${W32CC} $<
-#	@${W32CC} -c ${W32CFLAGS} $< -o $@
+%-w32.o: %.c
+	@echo ${W32CC} $<
+	@${W32CC} -c ${W32CFLAGS} $< -o $@
 
 monocle: options ${OBJ}
 	@echo ${CC} ${OBJ} -o $@
 	@${CC} ${LDFLAGS} ${OBJ} -o $@
 
-#monocle.exe: ${W32OBJ}
-#	@echo "*** WARNING: The resulting monocle.exe binary is defunct as of now, it will not run properly. ***"
-#	@echo ${W32CC} ${W32OBJ} -o $@
-#	@${W32CC} ${W32OBJ} ${W32LDFLAGS} -o $@
+monocle.exe: ${W32OBJ}
+	@echo ${W32CC} ${W32OBJ} -o $@
+	@${W32CC} ${W32OBJ} ${W32LDFLAGS} -o $@
 
 install: monocle
 	@echo "installing monocle to ${INSTALLDIR}"
@@ -53,4 +52,5 @@ clean:
 	@rm -vf ${OBJ}
 	@rm -vf ${W32OBJ}
 	@rm -vf monocle
+	@rm -vf monocle.exe
 	@echo all clean

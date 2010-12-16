@@ -508,6 +508,9 @@ thumbnail_thread (GtkTreeRowReference *rowref){
 /* returns a NULL if one can't be made */
 static GdkPixbuf
 *generate_thumbnail (gchar *filename){
+#ifdef WIN32
+    return gdk_pixbuf_new_from_file_at_size(filename, 128, -1, NULL);
+#else
     gchar *uri = encode_file_uri(filename);
     gchar *md5uri = md5sum(uri);
     gchar *homedir = getenv("HOME"); /* put this elsewhere, no sense calling it everytime we want a thumbnail */
@@ -524,6 +527,7 @@ static GdkPixbuf
     g_free(uri);
     g_free(file);
     return thumb;
+#endif
 }
 
 /* md5hashes a string */
