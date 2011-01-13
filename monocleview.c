@@ -112,7 +112,7 @@ monocle_view_set_image(MonocleView *self, gchar *filename){
         return;
 
     priv->loader = gdk_pixbuf_loader_new();
-    g_signal_connect_object(G_OBJECT(priv->loader), "size-prepared",  G_CALLBACK(cb_loader_size_prepared), self, 0);
+    g_signal_connect_object(G_OBJECT(priv->loader), "size-prepared", G_CALLBACK(cb_loader_size_prepared), self, 0);
     g_signal_connect_object(G_OBJECT(priv->loader), "area-prepared", G_CALLBACK(cb_loader_area_prepared), self, 0);
     g_signal_connect_object(G_OBJECT(priv->loader), "area-updated",  G_CALLBACK(cb_loader_area_updated), self, 0);
     g_signal_connect_object(G_OBJECT(priv->loader), "closed",        G_CALLBACK(cb_loader_closed), self, 0);
@@ -160,6 +160,12 @@ monocle_view_scale_image( MonocleView *self ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
     GtkWidget          *widget = GTK_WIDGET(self);
     
+    /*enclosing the entire function in an if looks ugly*/
+    if(priv->isanimated && !priv->scale_gifs){
+        redraw_image(self, 0, 0, -1, -1);
+        return;
+    }
+
     gfloat scale = priv->scale;
     gint pwidth, pheight, swidth, sheight;
 
@@ -285,8 +291,7 @@ cb_advance_anim( MonocleView *self ){
     priv->oimg  = gdk_pixbuf_animation_iter_get_pixbuf(priv->iter); /* I know the docs say to copy this but that mem leaks */
     priv->img = g_object_ref(priv->oimg);
 
-    if(priv->scale_gifs)
-        monocle_view_scale_image(self);
+    monocle_view_scale_image(self);
     
     g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
 

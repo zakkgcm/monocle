@@ -15,7 +15,13 @@
 
 MonocleView *image;
 MonocleThumbpane *thumbpane;
-GtkWidget *window;
+GtkWidget *window, *vbox, *hbox, *vthumbbox, *hthumbbox;
+
+struct _settings {
+    gboolean autohide_thumbpane;
+}; 
+static struct _settings settings;
+
 
 static GtkWidget 
 *create_menubar( GtkWidget *window, GtkItemFactoryEntry *menu_items, gint nmenu_items ){
@@ -44,7 +50,7 @@ load_config (){
     
     if(g_file_test(config_file, G_FILE_TEST_EXISTS)){
         config = g_key_file_new();
-
+        
         if(!g_key_file_load_from_file(config, config_file, G_KEY_FILE_NONE, &error)){
             /* something went wrong besides there not being a config file */
             if(!g_error_matches(error, G_FILE_ERROR, G_FILE_ERROR_NOENT))
@@ -55,6 +61,7 @@ load_config (){
         }
 
         /* grab necessary keys and load them into appropriate widgets */
+        /* this is going to get real messy real fast */
         if((conf_threads = g_key_file_get_integer(config, "monocle", "threads", &error)) <= 0){
             conf_threads = 1;
             g_clear_error(&error);
@@ -65,9 +72,15 @@ load_config (){
         g_clear_error(&error);
         monocle_view_set_scale_gifs(image, conf_scalegifs);
 
-         g_key_file_free(config);
+        settings.autohide_thumbpane = g_key_file_get_boolean(config, "thumbpane", "autohide", &error);
+        g_clear_error(&error);
+
+        g_key_file_free(config);
+
+        
     }
 
+    /* this would be cleaner but involve a lot of string comparison */
     /*if((config_keys = g_key_file_get_keys(config, "monocle", NULL, error)) == NULL){
         printf("[[monocle] problem when loading config: %s\n", error->message);
         g_clear_error(error);
@@ -101,6 +114,7 @@ save_config (){
 
     g_key_file_set_integer(config, "monocle", "threads", monocle_thumbpane_get_num_threads(thumbpane));
     g_key_file_set_boolean(config, "monocle", "scalegifs", monocle_view_get_scale_gifs(image));
+    g_key_file_set_boolean(config, "thumbpane", "autohide", settings.autohide_thumbpane);
 
     config_buf = g_key_file_to_data(config, NULL, NULL);
     
@@ -119,6 +133,15 @@ save_config (){
     g_free(config_dir);
 }
 
+/*static void
+widget_toggle_visible (GtkWidget *widget){
+    printf("how was toggled?\n");
+    if(gtk_widget_get_visible(widget))
+        gtk_widget_show(widget);
+    else
+        gtk_widget_hide(widget);
+}*/
+
 static void
 cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
     /* what am I even DOING this is absurd */
@@ -134,6 +157,15 @@ cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
     }
 
     monocle_view_set_image(image, filename);
+}
+
+static void
+cb_rowcount_changed (GtkWidget *widget, gint rowcount, gpointer data){
+    if(rowcount <= 1 && settings.autohide_thumbpane)
+        gtk_widget_hide(vthumbbox);
+    else if(!gtk_widget_get_visible(vthumbbox))
+        gtk_widget_show(vthumbbox);
+        
 }
 
 /* File Stuff */
@@ -184,7 +216,7 @@ cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_i
 
 static void
 cb_preferences_dialog (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
-    GtkWidget *preferences, *content_area, *table, *spin_threads, *check_scalegifs;
+    GtkWidget *preferences, *content_area, *table, *spin_threads, *check_scalegifs, *check_autohide_thumbpane;
     preferences = gtk_dialog_new_with_buttons("Monocle Preferences", GTK_WINDOW(window),
                                     GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
                                     GTK_STOCK_CLOSE, NULL);
@@ -195,12 +227,16 @@ cb_preferences_dialog (gpointer callback_data, guint callback_action, GtkWidget 
     spin_threads = gtk_spin_button_new_with_range (1, 1000, 1);
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(spin_threads), (gdouble)monocle_thumbpane_get_num_threads(thumbpane));
 
-    check_scalegifs = gtk_check_button_new_with_label ("Scale Gifs");
+    check_scalegifs = gtk_check_button_new_with_label ("Scale Animations?");
     gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_scalegifs), monocle_view_get_scale_gifs(image));
 
+    check_autohide_thumbpane = gtk_check_button_new_with_label ("Autohide_Thumbpane?");
+    gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check_autohide_thumbpane), settings.autohide_thumbpane);
+    
     gtk_table_attach(GTK_TABLE(table), gtk_label_new("Thumbnailing Threads"), 0, 1, 0, 1, GTK_EXPAND|GTK_FILL, GTK_SHRINK, 5, 1);
     gtk_table_attach(GTK_TABLE(table), spin_threads, 1, 2, 0, 1, GTK_SHRINK, GTK_EXPAND|GTK_FILL, 0, 0);
     gtk_table_attach(GTK_TABLE(table), check_scalegifs, 0, 1, 2, 3, GTK_EXPAND|GTK_FILL, GTK_EXPAND|GTK_FILL, 0, 0);
+    gtk_table_attach(GTK_TABLE(table), check_autohide_thumbpane, 0, 1, 3, 4, GTK_EXPAND|GTK_FILL, GTK_EXPAND|GTK_FILL, 0, 0);
    
     gtk_container_add(GTK_CONTAINER(content_area), table);
     gtk_widget_show_all(content_area);
@@ -209,12 +245,15 @@ cb_preferences_dialog (gpointer callback_data, guint callback_action, GtkWidget 
 
     monocle_thumbpane_set_num_threads(thumbpane, gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(spin_threads)));
     monocle_view_set_scale_gifs(image, gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_scalegifs)));
+    settings.autohide_thumbpane = gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(check_autohide_thumbpane));
+
     gtk_widget_destroy(preferences);
     return;
 }
 
 /* Menu callbacks */
-static void cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+static void 
+cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     gfloat scale;
     switch(callback_action) {
         case 0:
@@ -294,11 +333,10 @@ static gboolean monocle_quit (){
 }
 
 int main (int argc, char *argv[]){
-    GtkWidget *vbox, *hbox, *vthumbbox, *hthumbbox,
-              *menubar, *view_win,
+    GtkWidget *menubar, *view_win,
               *thumbadd, *thumbrm;
     gchar filearg[PATH_MAX+1];
-    float scale = 1;
+    float scale = MONOCLE_SCALE_FIT;
     gboolean recursive_load = FALSE;
 
     int optc;
@@ -316,7 +354,7 @@ int main (int argc, char *argv[]){
                     scale = atof(optarg);
                     printf("Setting scale to %.1f\n", scale);
                 }else{
-                    printf("Unknown scale %s, defaulting to 1\n", optarg);
+                    printf("Unknown scale %s, defaulting to fit\n", optarg);
                 }
                 break;
             case 'v':
@@ -339,9 +377,10 @@ int main (int argc, char *argv[]){
     /* Thumbpane VBox and Buttons */
     thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
     g_signal_connect(G_OBJECT(thumbpane), "image-changed", G_CALLBACK(cb_set_image), NULL);
+    g_signal_connect(G_OBJECT(thumbpane), "rowcount-changed", G_CALLBACK(cb_rowcount_changed), NULL);
 
-    vthumbbox = gtk_vbox_new(FALSE, 1);
-    hthumbbox = gtk_hbutton_box_new();
+    vthumbbox   = gtk_vbox_new(FALSE, 1);
+    hthumbbox   = gtk_hbutton_box_new();
     thumbadd    = gtk_button_new_from_stock(GTK_STOCK_ADD);
     thumbrm     = gtk_button_new_from_stock(GTK_STOCK_REMOVE);
 
@@ -381,8 +420,11 @@ int main (int argc, char *argv[]){
 
     gtk_box_pack_start(GTK_BOX (hbox), vthumbbox, FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX (hbox), GTK_WIDGET(view_win), TRUE, TRUE, 0);
-
+    
     gtk_widget_show_all(window);
+    
+    if(settings.autohide_thumbpane)
+        gtk_widget_hide(vthumbbox);
 
     if(argc > 1){
 #ifdef WIN32

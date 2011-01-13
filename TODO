@@ -5,7 +5,7 @@
 4. little details like file-opening and scrollbars [DONE]
 5. make code less hackish [KIND OF DONE]
 6. Add film-roll like image selector [DONE]
-7. Add Zoom-in-to-fit and Zoom-out-to-fit
+7. Add [s]Zoom-in-to-fit and Zoom-out-to-fit[/s] shrink-to-fit and zoom-to-fit
 8. Add a customizable background to be used for transparent images (checkerboard, black, white)
 9. Threading for things like scaling or thumbnail production [PARTIAL]
 11. pad thumbnails with vertical space (if need be)

@@ -18,7 +18,8 @@ typedef struct _MonocleThumbpanePrivate {
 
     GThreadPool *pool;
     gint num_threads;
-
+    
+    gint rowcount;
     GdkPixbuf *default_thumb;
 } MonocleThumbpanePrivate;
 
@@ -41,11 +42,14 @@ enum {
 
 enum {
     CHANGED_SIGNAL,
+    ROWCOUNT_SIGNAL,
     LAST_SIGNAL
 };
 
 /*static void monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation);*/
 static gboolean cb_row_selected (GtkTreeSelection *selection, GtkTreeModel *model, GtkTreePath *path, gboolean curpath, gpointer user_data);
+static void cb_row_inserted (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, MonocleThumbpane *self);
+static void cb_row_deleted  (GtkTreeModel *model, GtkTreePath *path, MonocleThumbpane *self);
 
 static gint cb_sort_func (GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer user_data);
 static gint sort_func_date (gchar *a, gchar *b);
@@ -93,6 +97,9 @@ monocle_thumbpane_init (MonocleThumbpane *self){
     gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(list), SORT_DATE, cb_sort_func, GINT_TO_POINTER(SORT_DATE), NULL);
     gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(list), SORT_SIZE, cb_sort_func, GINT_TO_POINTER(SORT_SIZE), NULL);
 
+    g_signal_connect_object(G_OBJECT(list), "row-inserted", G_CALLBACK(cb_row_inserted), self, 0);
+    g_signal_connect_object(G_OBJECT(list), "row-deleted",  G_CALLBACK(cb_row_deleted), self, 0);
+
     priv->sort_order = GTK_SORT_ASCENDING;
     gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(list), SORT_NAME, priv->sort_order);
     priv->treeview = GTK_TREE_VIEW(treeview);
@@ -123,6 +130,14 @@ monocle_thumbpane_class_init (MonocleThumbpaneClass *klass){
                       NULL, NULL,
                       g_cclosure_marshal_VOID__STRING, G_TYPE_NONE, 
                       1, G_TYPE_STRING );
+    monocle_thumbpane_signals[ROWCOUNT_SIGNAL] =
+            g_signal_new( "rowcount-changed", G_TYPE_FROM_CLASS(klass),
+                      G_SIGNAL_ACTION,
+                      G_STRUCT_OFFSET(MonocleThumbpaneClass, monocle_thumbpane),
+                      NULL, NULL,
+                      g_cclosure_marshal_VOID__INT, G_TYPE_NONE, 
+                      1, G_TYPE_INT );
+
 }
 
 void
@@ -395,8 +410,22 @@ cb_row_selected (GtkTreeSelection *selection,
     }
    
     return TRUE;
-
 }
+
+static void
+cb_row_inserted (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    priv->rowcount = priv->rowcount + 1;
+    g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[ROWCOUNT_SIGNAL], 0, priv->rowcount);
+}
+
+static void
+cb_row_deleted (GtkTreeModel *model, GtkTreePath *path, MonocleThumbpane *self){
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    priv->rowcount = priv->rowcount - 1;
+    g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[ROWCOUNT_SIGNAL], 0, priv->rowcount);
+}
+
 
 /* Sorting Functions */
 static gint
