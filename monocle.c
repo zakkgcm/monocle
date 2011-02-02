@@ -15,6 +15,7 @@
 
 MonocleView *image;
 MonocleThumbpane *thumbpane;
+GtkUIManager *uimanager;
 GtkWidget *window, *vbox, *hbox, *vthumbbox, *hthumbbox;
 
 struct _settings {
@@ -22,20 +23,10 @@ struct _settings {
 }; 
 static struct _settings settings;
 
-
-static GtkWidget 
-*create_menubar( GtkWidget *window, GtkItemFactoryEntry *menu_items, gint nmenu_items ){
-    GtkAccelGroup *accel_group = gtk_accel_group_new();
-    GtkItemFactory *item_factory = gtk_item_factory_new (GTK_TYPE_MENU_BAR, "<main>", accel_group);
-
-    gtk_item_factory_create_items(item_factory, nmenu_items, menu_items, NULL);
-    gtk_window_add_accel_group(GTK_WINDOW (window), accel_group);
-    
-    return gtk_item_factory_get_widget(item_factory, "<main>");
-}
-
-/* loads the config file warn the user then move along if something goes wrong */
-/* i'd imagine there's a cleaner way to do this */
+/* loads the config file
+ * warn the user then move along if something goes wrong
+ * i'd imagine there's a cleaner way to do this 
+ */
 static void
 load_config (){
     GKeyFile *config;
@@ -95,6 +86,7 @@ load_config (){
     g_free(config_file);
 }
 
+/* saves the config file */
 static void
 save_config (){
     GKeyFile *config;
@@ -133,15 +125,6 @@ save_config (){
     g_free(config_dir);
 }
 
-/*static void
-widget_toggle_visible (GtkWidget *widget){
-    printf("how was toggled?\n");
-    if(gtk_widget_get_visible(widget))
-        gtk_widget_show(widget);
-    else
-        gtk_widget_hide(widget);
-}*/
-
 static void
 cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
     /* what am I even DOING this is absurd */
@@ -168,9 +151,9 @@ cb_rowcount_changed (GtkWidget *widget, gint rowcount, gpointer data){
         
 }
 
-/* File Stuff */
+/* Menu Actions */
 static void
-cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+action_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_OPEN,
                                 GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -190,7 +173,7 @@ cb_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_ite
 }
 
 static void
-cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+action_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     GtkWidget *recursive_toggle = gtk_check_button_new_with_label("Open Recursively?");
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Folder", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
@@ -215,7 +198,7 @@ cb_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_i
 }
 
 static void
-cb_preferences_dialog (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+action_edit_preferences (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
     GtkWidget *preferences, *content_area, *table, *spin_threads, *check_scalegifs, *check_autohide_thumbpane;
     preferences = gtk_dialog_new_with_buttons("Monocle Preferences", GTK_WINDOW(window),
                                     GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -251,28 +234,25 @@ cb_preferences_dialog (gpointer callback_data, guint callback_action, GtkWidget 
     return;
 }
 
-/* Menu callbacks */
 static void 
-cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data){
     gfloat scale;
-    switch(callback_action) {
-        case 0:
-            scale = MONOCLE_SCALE_FIT;
-            break;
+    switch(gtk_radio_action_get_current_value(current)) {
         case 1:
             scale = 1.0;
             break;
         case 2:
-            scale = 0.5;
+            scale = MONOCLE_SCALE_FITHEIGHT;
             break;
         case 3:
-            scale = 0.25;
+            scale = MONOCLE_SCALE_FITWIDTH;
             break;
+        /* these dont quite work yet */
         case 4:
-            scale = 2.0;
+            scale = monocle_view_get_scale(image) + 0.25;
             break;
         case 5:
-            scale = 4.0;
+            scale = monocle_view_get_scale(image) - 0.25;
             break;
         default:
             scale = 1.0;
@@ -282,22 +262,22 @@ cb_scale_image (gpointer callback_data, guint callback_action, GtkWidget *menu_i
 }
 
 static void
-cb_set_sorting (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
-    switch(callback_action) {
-        case 0:
-            monocle_thumbpane_sort_by_name (thumbpane);
-            break;
-        case 1:
-            monocle_thumbpane_sort_by_date (thumbpane);
-            break;
-        case 2:
-            monocle_thumbpane_sort_by_size (thumbpane);
-            break;
-        case 3:
+action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data){
+    switch(gtk_radio_action_get_current_value(current)) {
+        case -1:
             monocle_thumbpane_sort_order_ascending (thumbpane);
             break;
-        case 4:
+        case -2:
             monocle_thumbpane_sort_order_descending (thumbpane);
+            break;
+        case 1:
+            monocle_thumbpane_sort_by_name (thumbpane);
+            break;
+        case 2:
+            monocle_thumbpane_sort_by_date (thumbpane);
+            break;
+        case 3:
+            monocle_thumbpane_sort_by_size (thumbpane);
             break;
     }
     return;
@@ -332,13 +312,18 @@ static gboolean monocle_quit (){
     return TRUE;
 }
 
+/* Main Loop */
 int main (int argc, char *argv[]){
-    GtkWidget *menubar, *view_win,
+    GtkWidget *view_win,
               *thumbadd, *thumbrm;
+    GtkActionGroup *action_group;
+    GError *error = NULL;
+
     gchar filearg[PATH_MAX+1];
-    float scale = MONOCLE_SCALE_FIT;
+    float scale = MONOCLE_SCALE_FITHEIGHT;
     gboolean recursive_load = FALSE;
 
+    /* Parse Arguments */
     int optc;
     extern char *optarg;
     while((optc = getopt(argc, argv, "hvRs:")) != EOF)
@@ -347,14 +332,17 @@ int main (int argc, char *argv[]){
                 recursive_load = TRUE;
                 break;
             case 's':
-                if(!strcmp(optarg, "fit")){
-                    scale = MONOCLE_SCALE_FIT;
-                    printf("Setting scale to fit to window\n");
+                if(!strcmp(optarg, "fitheight")){
+                    scale = MONOCLE_SCALE_FITHEIGHT;
+                    printf("Setting scale to fit to height\n");
+                }else if(!strcmp(optarg, "fitwidth")){
+                    scale = MONOCLE_SCALE_FITWIDTH;
+                    printf("Setting scale to fit to width\n");
                 }else if(atof(optarg) > 0){ 
                     scale = atof(optarg);
                     printf("Setting scale to %.1f\n", scale);
                 }else{
-                    printf("Unknown scale %s, defaulting to fit\n", optarg);
+                    printf("Unknown scale %s, defaulting to fit to height\n", optarg);
                 }
                 break;
             case 'v':
@@ -370,6 +358,27 @@ int main (int argc, char *argv[]){
     g_thread_init(NULL);
     gdk_threads_init();
 
+    /* UI Manager Setup */
+    uimanager = gtk_ui_manager_new();
+    action_group = gtk_action_group_new ("Menu Actions");
+
+    gtk_action_group_add_actions (action_group, main_entries, G_N_ELEMENTS(main_entries), NULL);
+    gtk_action_group_add_radio_actions (action_group, zoom_entries, G_N_ELEMENTS(zoom_entries), 2,
+                                                                    G_CALLBACK(action_scale_menu), NULL);
+    gtk_action_group_add_radio_actions (action_group, sorttype_entries, G_N_ELEMENTS(sorttype_entries), 1,
+                                                                        G_CALLBACK(action_sort_menu), NULL);
+    gtk_action_group_add_radio_actions (action_group, sortdirection_entries, G_N_ELEMENTS(sortdirection_entries), -1,
+                                                                             G_CALLBACK(action_sort_menu), NULL);
+    gtk_ui_manager_insert_action_group (uimanager, action_group, 0);
+
+    gtk_ui_manager_add_ui_from_string (uimanager, monocle_ui, -1, &error);
+    if(error){
+        printf("[monocle] problem when parsing menus: %s\n", error->message);
+        g_error_free(error);
+        exit(EXIT_FAILURE);
+    }
+
+    /* Widget Setup */
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     g_signal_connect(G_OBJECT(window), "delete_event", G_CALLBACK(monocle_quit), NULL);
     gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
@@ -401,7 +410,7 @@ int main (int argc, char *argv[]){
     hbox = gtk_hbox_new(FALSE, 1);
     gtk_container_border_width(GTK_CONTAINER (hbox), 1);
 
-    menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));
+    /*menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));*/
     image = g_object_new(MONOCLE_TYPE_VIEW, NULL);
     monocle_view_set_scale(image, scale);
     
@@ -415,7 +424,7 @@ int main (int argc, char *argv[]){
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(view_win), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(view_win), GTK_WIDGET(image));
     
-    gtk_box_pack_start(GTK_BOX (vbox), menubar, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX (vbox), gtk_ui_manager_get_widget(uimanager, "/MainMenubar"), FALSE, FALSE, 0);
     gtk_box_pack_end(GTK_BOX (vbox), GTK_WIDGET(hbox), TRUE, TRUE, 0);
 
     gtk_box_pack_start(GTK_BOX (hbox), vthumbbox, FALSE, FALSE, 0);
@@ -423,6 +432,7 @@ int main (int argc, char *argv[]){
     
     gtk_widget_show_all(window);
     
+    /* Program Initialization */
     if(settings.autohide_thumbpane)
         gtk_widget_hide(vthumbbox);
 
@@ -449,6 +459,7 @@ int main (int argc, char *argv[]){
     gtk_main();
     gdk_threads_leave();
     
+    /* Save our config before we go */
     save_config();
     return EXIT_SUCCESS;
 }

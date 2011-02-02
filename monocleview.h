@@ -13,8 +13,8 @@
 #define MONOCLE_IS_VIEW_CLASS(klass)    (G_TYPE_CHECK_VLASS_TYPE ((klass), MONOCLE_TYPE_VIEW))
 #define MONOCLE_VIEW_GET_CLASS(obj)     (G_TYPE_INSTANCE_GET_CLASS ((obj), MONOCLE_TYPE_VIEW, MonocleViewClass))
 
-#define MONOCLE_SCALE_FIT -1.0
-#define MONOCLE_SCALE_ZOOMFIT -2.0
+#define MONOCLE_SCALE_FITWIDTH -1.0
+#define MONOCLE_SCALE_FITHEIGHT -2.0
 
 typedef struct _MonocleView         MonocleView;
 typedef struct _MonocleViewClass    MonocleViewClass;
@@ -33,6 +33,7 @@ void monocle_view_set_image (MonocleView *self, gchar *filename);
 void monocle_view_set_scale (MonocleView *self, gfloat scale);
 void monocle_view_set_scale_gifs (MonocleView *self, gboolean scale_gifs);
 
+gfloat monocle_view_get_scale (MonocleView *self);
 gboolean monocle_view_get_scale_gifs (MonocleView *self);
 
 void monocle_view_scale_image (MonocleView *self);

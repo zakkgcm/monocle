@@ -22,6 +22,9 @@ f = fixed, r = reopened, f(?) = haven't run into it (probably involves threading
 [ ] monocleview's priv->iter is [never] a valid gobject for some rasin
 [ ] monocle hangs for some unknown reason sometimes when loading gifs (might be these nvidia drivers)
 [ ] gifs are scaled regardless of scale_gifs setting when loading first (this is because we can't know if it is or not animated until later)
+[ ] C90 warnings everywhere
+[ ] some images scale to improper dimensions
+[ ] default menu setting of zoom level is not reflective of actual zoom level
 [f(?)] (monocle:30680): Gtk-WARNING **: gtktreemodel.c:2117: bad row reference, proxy has no outstanding row references <- ???
 [f(?)] segfault occasionally probably because of threading
 [f(?)] while testing ran into deadlocks in gdb, couldn't reproduce outside of gdb though

@@ -131,7 +131,7 @@ monocle_view_set_scale( MonocleView *self, gfloat scale ){
     
     scale = (gfloat)round(scale*10)/10;
     
-    if(scale <= 0.0 && ((int)scale != MONOCLE_SCALE_FIT && (int)scale != MONOCLE_SCALE_ZOOMFIT))
+    if(scale <= 0.0 && ((int)scale != MONOCLE_SCALE_FITHEIGHT && (int)scale != MONOCLE_SCALE_FITWIDTH))
         priv->scale = 1.0;
     else
         priv->scale = scale;
@@ -139,6 +139,12 @@ monocle_view_set_scale( MonocleView *self, gfloat scale ){
     if(priv->oimg != NULL)
         monocle_view_scale_image(self);
     return;
+}
+
+gfloat
+monocle_view_get_scale( MonocleView *self ){
+    MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
+    return priv->scale;
 }
 
 void
@@ -167,14 +173,20 @@ monocle_view_scale_image( MonocleView *self ){
     }
 
     gfloat scale = priv->scale;
-    gint pwidth, pheight, swidth, sheight;
+    gint pwidth, pheight, swidth, sheight, wwidth, wheight;
 
     pwidth  = gdk_pixbuf_get_width(priv->oimg);
     pheight = gdk_pixbuf_get_height(priv->oimg);
+    wwidth  = widget->allocation.width;
+    wheight = widget->allocation.height;
+
 
     /* these really are just negative values in a define */
-    if(priv->scale == MONOCLE_SCALE_FIT)
-        scale = (pwidth > pheight) ? (double)widget->allocation.width/pwidth : (double)widget->allocation.height/pheight;
+    /* forced conform to window*/
+    if(priv->scale == MONOCLE_SCALE_FITHEIGHT)
+        scale = (pwidth > pheight) ? (gfloat)wwidth/pwidth : (gfloat)wheight/pheight;
+    else if(priv->scale == MONOCLE_SCALE_FITWIDTH)
+        scale = (pwidth > pheight) ? (gfloat)wheight/pheight : (gfloat)wwidth/pwidth;
     
     swidth  = (int)(pwidth * scale);
     sheight = (int)(pheight * scale);

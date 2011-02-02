@@ -2,7 +2,7 @@
 # cheeseum 2010
 
 PROGNAME = monocle
-VERSION  = 1.4
+VERSION  = 1.5
 
 PREFIX     ?= /usr
 INSTALLDIR ?= ${DESTDIR}${PREFIX}
@@ -24,5 +24,5 @@ W32_GTK_CFLAGS = $(shell $(W32PKG_CONFIG) --cflags gtk+-win32-2.0)
 W32_GTK_LDFLAGS = $(shell $(W32PKG_CONFIG) --libs gtk+-win32-2.0)
 W32_DEBUGFLAGS = -ggdb -ggdb3
 W32CFLAGS	= -O3 -mms-bitfields -mwindows -lgthread-2.0 -pedantic -Wall -DVERSION=\"${VERSION}\"  -DPROGNAME=\"${PROGNAME}\" ${W32_GTK_CFLAGS}
-W32CFLAGS   += ${W32_DEBUGFLAGS}
+#W32CFLAGS   += ${W32_DEBUGFLAGS}
 W32LDFLAGS = -Wl,-subsystem,windows $(W32_GTK_LDFLAGS)
