@@ -236,29 +236,31 @@ action_edit_preferences (gpointer callback_data, guint callback_action, GtkWidge
 
 static void 
 action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data){
-    gfloat scale;
     switch(gtk_radio_action_get_current_value(current)) {
-        case 1:
-            scale = 1.0;
-            break;
         case 2:
-            scale = MONOCLE_SCALE_FITHEIGHT;
+            monocle_view_set_zoom_mode(image, MONOCLE_SCALE_FITHEIGHT);
             break;
         case 3:
-            scale = MONOCLE_SCALE_FITWIDTH;
+            monocle_view_set_zoom_mode(image, MONOCLE_SCALE_FITWIDTH);
             break;
-        /* these dont quite work yet */
         case 4:
-            scale = monocle_view_get_scale(image) + 0.25;
+            monocle_view_set_zoom_mode(image, MONOCLE_SCALE_CUSTOM);
             break;
-        case 5:
-            scale = monocle_view_get_scale(image) - 0.25;
-            break;
+        case 1:
         default:
-            scale = 1.0;
+            monocle_view_set_zoom_mode(image, MONOCLE_SCALE_1TO1);
     }
-    monocle_view_set_scale(image, scale);
     return;
+}
+
+static void
+action_zoom_in (){
+    monocle_view_set_scale(image, monocle_view_get_scale(image) * 1.25);
+}
+
+static void
+action_zoom_out (){
+    monocle_view_set_scale(image, monocle_view_get_scale(image) * 0.8);
 }
 
 static void
@@ -320,7 +322,8 @@ int main (int argc, char *argv[]){
     GError *error = NULL;
 
     gchar filearg[PATH_MAX+1];
-    float scale = MONOCLE_SCALE_FITHEIGHT;
+    gfloat scale = 1.0;
+    MonocleZoomMode zoom_mode = MONOCLE_SCALE_FITHEIGHT;
     gboolean recursive_load = FALSE;
 
     /* Parse Arguments */
@@ -333,14 +336,14 @@ int main (int argc, char *argv[]){
                 break;
             case 's':
                 if(!strcmp(optarg, "fitheight")){
-                    scale = MONOCLE_SCALE_FITHEIGHT;
+                    zoom_mode = MONOCLE_SCALE_FITHEIGHT;
                     printf("Setting scale to fit to height\n");
                 }else if(!strcmp(optarg, "fitwidth")){
-                    scale = MONOCLE_SCALE_FITWIDTH;
+                    zoom_mode = MONOCLE_SCALE_FITWIDTH;
                     printf("Setting scale to fit to width\n");
                 }else if(atof(optarg) > 0){ 
+                    zoom_mode = MONOCLE_SCALE_CUSTOM;
                     scale = atof(optarg);
-                    printf("Setting scale to %.1f\n", scale);
                 }else{
                     printf("Unknown scale %s, defaulting to fit to height\n", optarg);
                 }
@@ -365,6 +368,7 @@ int main (int argc, char *argv[]){
     gtk_action_group_add_actions (action_group, main_entries, G_N_ELEMENTS(main_entries), NULL);
     gtk_action_group_add_radio_actions (action_group, zoom_entries, G_N_ELEMENTS(zoom_entries), 2,
                                                                     G_CALLBACK(action_scale_menu), NULL);
+    gtk_action_group_add_actions (action_group, zoom_inout_entries, G_N_ELEMENTS(zoom_inout_entries), NULL);
     gtk_action_group_add_radio_actions (action_group, sorttype_entries, G_N_ELEMENTS(sorttype_entries), 1,
                                                                         G_CALLBACK(action_sort_menu), NULL);
     gtk_action_group_add_radio_actions (action_group, sortdirection_entries, G_N_ELEMENTS(sortdirection_entries), -1,
@@ -380,6 +384,7 @@ int main (int argc, char *argv[]){
 
     /* Widget Setup */
     window = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+    gtk_window_add_accel_group(GTK_WINDOW(window), gtk_ui_manager_get_accel_group(uimanager));
     g_signal_connect(G_OBJECT(window), "delete_event", G_CALLBACK(monocle_quit), NULL);
     gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
 
@@ -413,6 +418,7 @@ int main (int argc, char *argv[]){
     /*menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));*/
     image = g_object_new(MONOCLE_TYPE_VIEW, NULL);
     monocle_view_set_scale(image, scale);
+    monocle_view_set_zoom_mode(image, zoom_mode);
     
     gtk_widget_set_size_request(GTK_WIDGET(thumbpane), 150, -1);
 

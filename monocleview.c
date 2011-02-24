@@ -3,7 +3,6 @@
  * author: cheeseum
  * license: see LICENSE
  */
-#include <math.h>
 #include "monocleview.h"
 
 #define BUFSIZE 4096
@@ -27,6 +26,7 @@ typedef struct _MonocleViewPrivate {
 
     gint     monitor_id;
     gfloat   scale;
+    MonocleZoomMode zoom_mode;
 } MonocleViewPrivate;
 
 /* The idea is store the original image on load in oimg, never modify it, scale and mangle img as much as you want, use it to redraw to the screen */
@@ -35,6 +35,7 @@ G_DEFINE_TYPE(MonocleView, monocle_view, GTK_TYPE_LAYOUT)
 
 static gboolean monocle_view_expose     (GtkWidget *widget, GdkEventExpose *event);
 static void monocle_view_size_allocate  (GtkWidget *widget, GtkAllocation *allocation);
+static gfloat monocle_view_calculate_scale (MonocleView *self);
 static void cb_loader_size_prepared     (GdkPixbufLoader *loader, gint width, gint height, MonocleView *self);
 static void cb_loader_area_prepared     (GdkPixbufLoader *loader, MonocleView *self);
 static void cb_loader_area_updated      (GdkPixbufLoader *loader, gint x, gint y, gint width, gint height, MonocleView *self);
@@ -129,12 +130,7 @@ void
 monocle_view_set_scale( MonocleView *self, gfloat scale ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
     
-    scale = (gfloat)round(scale*10)/10;
-    
-    if(scale <= 0.0 && ((int)scale != MONOCLE_SCALE_FITHEIGHT && (int)scale != MONOCLE_SCALE_FITWIDTH))
-        priv->scale = 1.0;
-    else
-        priv->scale = scale;
+    priv->scale = scale <= 0 ? 1.0 : scale;
     
     if(priv->oimg != NULL)
         monocle_view_scale_image(self);
@@ -145,6 +141,16 @@ gfloat
 monocle_view_get_scale( MonocleView *self ){
     MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
     return priv->scale;
+}
+
+void
+monocle_view_set_zoom_mode( MonocleView *self, MonocleZoomMode mode ){
+    MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
+    priv->zoom_mode = mode;
+    if(priv->oimg){
+        priv->scale = monocle_view_calculate_scale(self);
+        monocle_view_scale_image(self);
+    }
 }
 
 void
@@ -160,45 +166,59 @@ monocle_view_get_scale_gifs( MonocleView *self ){
     return priv->scale_gifs;
 }
 
+/* gets desired scale factor based on zoom mode */
+gfloat monocle_view_calculate_scale( MonocleView *self ){
+    MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
+    GtkWidget          *widget = GTK_WIDGET(self);
+    gint pwidth, pheight, wwidth, wheight;
+    gfloat scale = priv->scale;
+
+    if(!priv->oimg)
+        return 1.0;
+    
+    pwidth  = gdk_pixbuf_get_width(priv->oimg);
+    pheight = gdk_pixbuf_get_height(priv->oimg);
+    wwidth  = widget->allocation.width;
+    wheight = widget->allocation.height;
+    
+    if(priv->zoom_mode == MONOCLE_SCALE_FITHEIGHT)
+        scale = (pwidth > pheight) ? (gfloat)wwidth/pwidth : (gfloat)wheight/pheight;
+    else if(priv->zoom_mode == MONOCLE_SCALE_FITWIDTH)
+        scale = (pwidth > pheight) ? (gfloat)wheight/pheight : (gfloat)wwidth/pwidth;
+    else if(priv->zoom_mode == MONOCLE_SCALE_1TO1)
+        scale = 1.0;
+    else if(priv->zoom_mode == MONOCLE_SCALE_CUSTOM)
+        scale = priv->scale;
+    
+    return scale;
+}
+
 /* only needs to be called upon change of scale or image, as such, it doesn't check if the image is already scaled */
 void
 monocle_view_scale_image( MonocleView *self ){
     MonocleViewPrivate *priv   = MONOCLE_VIEW_GET_PRIVATE(self);
-    GtkWidget          *widget = GTK_WIDGET(self);
-    
+    gint swidth, sheight;
+
+    if(!priv->oimg)
+        return;
+
     /*enclosing the entire function in an if looks ugly*/
     if(priv->isanimated && !priv->scale_gifs){
         redraw_image(self, 0, 0, -1, -1);
         return;
     }
-
-    gfloat scale = priv->scale;
-    gint pwidth, pheight, swidth, sheight, wwidth, wheight;
-
-    pwidth  = gdk_pixbuf_get_width(priv->oimg);
-    pheight = gdk_pixbuf_get_height(priv->oimg);
-    wwidth  = widget->allocation.width;
-    wheight = widget->allocation.height;
-
-
-    /* these really are just negative values in a define */
-    /* forced conform to window*/
-    if(priv->scale == MONOCLE_SCALE_FITHEIGHT)
-        scale = (pwidth > pheight) ? (gfloat)wwidth/pwidth : (gfloat)wheight/pheight;
-    else if(priv->scale == MONOCLE_SCALE_FITWIDTH)
-        scale = (pwidth > pheight) ? (gfloat)wheight/pheight : (gfloat)wwidth/pwidth;
     
-    swidth  = (int)(pwidth * scale);
-    sheight = (int)(pheight * scale);
+    swidth  = (int)(gdk_pixbuf_get_width(priv->oimg) * priv->scale);
+    sheight = (int)(gdk_pixbuf_get_height(priv->oimg) * priv->scale);
     
     if(priv->img != NULL)
         g_object_unref(priv->img);
    
-    if(scale == 1)
+    if(priv->scale == 1)
         priv->img = g_object_ref(priv->oimg);
     else
         priv->img = gdk_pixbuf_scale_simple(priv->oimg, swidth, sheight, GDK_INTERP_BILINEAR); /* make asynchronous */
-    
+
     gtk_layout_set_size(GTK_LAYOUT(self), gdk_pixbuf_get_width(priv->img), gdk_pixbuf_get_height(priv->img));
     redraw_image(self, 0, 0, -1, -1);
 }
@@ -283,8 +303,10 @@ cb_loader_closed( GdkPixbufLoader *loader, MonocleView *self ){
     }
     
     /* might have confused myself here */
-    if(!priv->isanimated || (priv->isanimated && priv->scale_gifs))
+    if(!priv->isanimated || (priv->isanimated && priv->scale_gifs)){
+        priv->scale = monocle_view_calculate_scale(self);
         monocle_view_scale_image(self);
+    }
     
     redraw_image(self, 0, 0, -1, -1);
 }
@@ -352,7 +374,7 @@ write_image_buf( MonocleView *self ){
     if(gdk_pixbuf_loader_write(priv->loader, (const guchar *)&buf, BUFSIZE, NULL) && bytes_read > 0){
         return TRUE;
     }
-   
+
     gdk_pixbuf_loader_close(priv->loader, NULL);
     g_io_channel_shutdown(priv->io, TRUE, NULL);
     g_io_channel_unref(priv->io);

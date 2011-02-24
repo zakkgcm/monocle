@@ -15,6 +15,8 @@ static void action_open_folder ();
 static void action_edit_preferences ();
 
 static void action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
+static void action_zoom_in ();
+static void action_zoom_out ();
 static void action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
 
 static gboolean cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data);
@@ -32,7 +34,10 @@ static const gchar *monocle_ui =
 "        </menu>"
 "        <menu name='ViewMenu' action='ViewMenuAction'>"
 "            <menuitem name='Fit to Width'   action='Scale_FitWidth'/>"
-"            <menuitem name='Fit  to Height' action='Scale_FitHeight'/>"
+"            <menuitem name='Fit to Height'  action='Scale_FitHeight'/>"
+"            <menuitem name='Cusom Zoom'     action='Scale_Custom'/>"
+"            <menuitem name='Zoom In'        action='Zoom_In'/>"
+"            <menuitem name='Zoom Out'       action='Zoom_Out'/>"
 "            <menuitem name='Zoom 1x'        action='Scale_1x'/>"
 "        </menu>"
 "        <menu name='SortMenu' action='SortMenuAction'>"
@@ -44,6 +49,9 @@ static const gchar *monocle_ui =
 "            <menuitem name='Descending' action='SortDescending'/>"
 "        </menu>"
 "    </menubar>"
+"        <accelerator name='kp_add' action='Zoom_In_KPadd'/>"
+"        <accelerator name='equal' action='Zoom_In_Equal'/>"
+"        <accelerator name='kp_subtract' action='Zoom_Out_KPsubtract'/>"
 "</ui>";
 
 static GtkActionEntry main_entries[] = {
@@ -87,14 +95,33 @@ static GtkRadioActionEntry zoom_entries[] = {
       "Fit to Width", NULL,
       "Fit Image to Width of Window", 3 },
 
+    { "Scale_Custom", NULL,
+      "Custom Zoom", NULL,
+      "Set a custom zoom level", 4 },
+
+};
+
+/* urhgurhgurhg all these accelerators */
+static GtkActionEntry zoom_inout_entries[] = {
     { "Zoom_In", NULL,
       "Zoom In", "plus",
-      "Zoom In", 4 },
+      "Zoom In", G_CALLBACK(action_zoom_in) },
+      
+    { "Zoom_In_KPadd", NULL,
+      "Zoom In", "KP_Add",
+      "Zoom In", G_CALLBACK(action_zoom_in) },
+    
+    { "Zoom_In_Equal", NULL,
+      "Zoom In", "equal",
+      "Zoom In", G_CALLBACK(action_zoom_in) },
     
     { "Zoom_Out", NULL,
       "Zoom Out", "minus",
-      "Zoom Out", 5 },
-
+      "Zoom Out", G_CALLBACK(action_zoom_out) },
+ 
+    { "Zoom_Out_KPsubtract", NULL,
+      "Zoom Out", "KP_Subtract",
+      "Zoom Out", G_CALLBACK(action_zoom_out) },
 };
 
 static GtkRadioActionEntry sorttype_entries[] = {
