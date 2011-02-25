@@ -89,7 +89,9 @@ monocle_thumbpane_init (MonocleThumbpane *self){
 
     gtk_tree_view_set_model(GTK_TREE_VIEW(treeview), GTK_TREE_MODEL(list));
     g_object_unref(list);
-
+ 
+    gtk_tree_view_set_enable_search(priv->treeview, FALSE); 
+    
     gtk_tree_selection_set_mode(sel, GTK_SELECTION_BROWSE);
     gtk_tree_selection_set_select_function(sel, cb_row_selected, self, NULL);
 
