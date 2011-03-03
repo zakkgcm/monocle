@@ -6,7 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <limits.h>
 #include <unistd.h>
 #include <gtk/gtk.h>
 
@@ -322,13 +321,16 @@ int main (int argc, char *argv[]) {
     GtkActionGroup *action_group;
     GError *error = NULL;
 
-    gchar filearg[PATH_MAX+1];
+    gchar *filearg;
     gfloat scale = 1.0;
     MonocleZoomMode zoom_mode = MONOCLE_SCALE_FITHEIGHT;
     gboolean recursive_load = FALSE;
 
+    int i;
+
     /* Parse Arguments */
     int optc;
+    extern int optind;
     extern char *optarg;
     while ((optc = getopt(argc, argv, "hvRs:")) != EOF)
         switch (optc) {
@@ -444,20 +446,25 @@ int main (int argc, char *argv[]) {
         gtk_widget_hide(vthumbbox);
 
     if (argc > 1) {
-#ifdef WIN32
-        strcpy(filearg, argv[argc-1]);
-#else
-        realpath(argv[argc-1], filearg); /* ty gmn and GNU info */
-#endif
-        /* am I even supposed to wrap these in enter/leave? supposedly since they're called outside of a callback I do */
-        if (g_file_test(filearg, G_FILE_TEST_IS_DIR)) {
-            gdk_threads_enter();
-            monocle_thumbpane_add_folder(thumbpane, filearg, recursive_load);
-            gdk_threads_leave();
-        } else {
-            gdk_threads_enter();
-            monocle_thumbpane_add_image(thumbpane, filearg);
-            gdk_threads_leave();
+        for (i = optind; i <= (argc - 1); i++) {
+        
+        #ifdef WIN32
+            filearg = g_malloc(sizeof(char) * (strlen(argv[i]) + 1));
+            strcpy(filearg, argv[i]);
+        #else
+            filearg = realpath(argv[i], NULL); /* ty gmn and GNU info */
+        #endif
+            /* am I even supposed to wrap these in enter/leave? supposedly since they're called outside of a callback I do */
+            if (g_file_test(filearg, G_FILE_TEST_IS_DIR)) {
+                gdk_threads_enter();
+                monocle_thumbpane_add_folder(thumbpane, filearg, recursive_load);
+                gdk_threads_leave();
+            } else {
+                gdk_threads_enter();
+                monocle_thumbpane_add_image(thumbpane, filearg); /* FIXME: use add_many instead */
+                gdk_threads_leave();
+            }
+            g_free(filearg);
         }
     }
 
