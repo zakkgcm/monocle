@@ -392,7 +392,7 @@ int main (int argc, char *argv[]) {
     gtk_window_set_default_size(GTK_WINDOW(window), 500, 500);
 
     /* Thumbpane VBox and Buttons */
-    thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
+    thumbpane = monocle_thumbpane_new();
     g_signal_connect(G_OBJECT(thumbpane), "image-changed", G_CALLBACK(cb_set_image), NULL);
     g_signal_connect(G_OBJECT(thumbpane), "rowcount-changed", G_CALLBACK(cb_rowcount_changed), NULL);
 
@@ -419,7 +419,7 @@ int main (int argc, char *argv[]) {
     gtk_container_border_width(GTK_CONTAINER (hbox), 1);
 
     /*menubar = create_menubar(window, mainmenu_items, LENGTH(mainmenu_items));*/
-    image = g_object_new(MONOCLE_TYPE_VIEW, NULL);
+    image = monocle_view_new();
     monocle_view_set_scale(image, scale);
     monocle_view_set_zoom_mode(image, zoom_mode);
     

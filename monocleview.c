@@ -35,15 +35,20 @@ typedef struct _MonocleViewPrivate {
 /* The idea is store the original image on load in oimg, never modify it, scale and mangle img as much as you want, use it to redraw to the screen */
 
 G_DEFINE_TYPE(MonocleView, monocle_view, GTK_TYPE_LAYOUT)
+static void monocle_view_init (MonocleView *self);
+static void monocle_view_class_init (MonocleViewClass *klass);
 
 static gboolean monocle_view_expose     (GtkWidget *widget, GdkEventExpose *event);
 static void monocle_view_size_allocate  (GtkWidget *widget, GtkAllocation *allocation);
+
 static gfloat monocle_view_calculate_scale (MonocleView *self);
+
 static void cb_loader_size_prepared     (GdkPixbufLoader *loader, gint width, gint height, MonocleView *self);
 static void cb_loader_area_prepared     (GdkPixbufLoader *loader, MonocleView *self);
 static void cb_loader_area_updated      (GdkPixbufLoader *loader, gint x, gint y, gint width, gint height, MonocleView *self);
 static void cb_loader_closed            (GdkPixbufLoader *loader, MonocleView *self);
 static void redraw_image                (MonocleView *self, gint x, gint y, gint width, gint height);
+
 static gboolean cb_advance_anim         (MonocleView *self);
 static gboolean write_image_buf         (MonocleView *self);
 
@@ -72,6 +77,12 @@ monocle_view_class_init (MonocleViewClass *klass) {
     w_class->size_allocate   = monocle_view_size_allocate;
    
     g_type_class_add_private(klass, sizeof(MonocleViewPrivate));
+}
+
+MonocleView
+*monocle_view_new () {
+    MonocleView *view = g_object_new(MONOCLE_TYPE_VIEW, NULL);
+    return view;
 }
 
 void

@@ -28,6 +28,8 @@ struct _MonocleThumbpaneClass {
 
 GType monocle_thumbpane_get_type (void);
 
+MonocleThumbpane *monocle_thumbpane_new ();
+
 void monocle_thumbpane_add_image    (MonocleThumbpane *self, gchar *filename);
 void monocle_thumbpane_add_many     (MonocleThumbpane *self, GSList *filenames);
 void monocle_thumbpane_add_folder   (MonocleThumbpane *self, gchar *folder, gboolean recursive);

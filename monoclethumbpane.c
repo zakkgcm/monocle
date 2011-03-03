@@ -110,9 +110,6 @@ monocle_thumbpane_init (MonocleThumbpane *self) {
     gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(list), SORT_NAME, priv->sort_order);
     priv->treeview = GTK_TREE_VIEW(treeview);
     
-    gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(priv->treeview)); /*(monocle:10764): Gtk-CRITICAL **: gtk_range_get_adjustment: assertion `GTK_IS_RANGE (range)' failed*/
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(self), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    
     priv->num_threads = 2;
 
     /* this WILL fail horribly if there is no mystery to be found */
@@ -140,6 +137,18 @@ monocle_thumbpane_class_init (MonocleThumbpaneClass *klass) {
                       g_cclosure_marshal_VOID__INT, G_TYPE_NONE, 
                       1, G_TYPE_INT );
 
+}
+
+MonocleThumbpane
+*monocle_thumbpane_new () {
+    MonocleThumbpane *thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(thumbpane);
+    
+    /* fixes GTK_IS_RANGE error */
+    gtk_container_add(GTK_CONTAINER(thumbpane), GTK_WIDGET(priv->treeview));
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(thumbpane), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+     
+    return thumbpane;
 }
 
 void
