@@ -2,6 +2,7 @@
  * author: cheeseum
  * license: see LICENSE
  */
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -28,7 +29,7 @@ static struct _settings settings;
  * i'd imagine there's a cleaner way to do this 
  */
 static void
-load_config (){
+load_config () {
     GKeyFile *config;
     gchar *config_file;
 
@@ -39,12 +40,12 @@ load_config (){
 
     config_file = g_build_filename(g_get_user_config_dir(), "monocle/", "monocle.conf", NULL);
     
-    if(g_file_test(config_file, G_FILE_TEST_EXISTS)){
+    if (g_file_test(config_file, G_FILE_TEST_EXISTS)) {
         config = g_key_file_new();
         
-        if(!g_key_file_load_from_file(config, config_file, G_KEY_FILE_NONE, &error)){
+        if (!g_key_file_load_from_file(config, config_file, G_KEY_FILE_NONE, &error)) {
             /* something went wrong besides there not being a config file */
-            if(!g_error_matches(error, G_FILE_ERROR, G_FILE_ERROR_NOENT))
+            if (!g_error_matches(error, G_FILE_ERROR, G_FILE_ERROR_NOENT))
                 printf("[monocle] problem when parsing config: %s\n", error->message);
 
             g_clear_error(&error);
@@ -53,7 +54,7 @@ load_config (){
 
         /* grab necessary keys and load them into appropriate widgets */
         /* this is going to get real messy real fast */
-        if((conf_threads = g_key_file_get_integer(config, "monocle", "threads", &error)) <= 0){
+        if ((conf_threads = g_key_file_get_integer(config, "monocle", "threads", &error)) <= 0) {
             conf_threads = 1;
             g_clear_error(&error);
         }
@@ -72,13 +73,13 @@ load_config (){
     }
 
     /* this would be cleaner but involve a lot of string comparison */
-    /*if((config_keys = g_key_file_get_keys(config, "monocle", NULL, error)) == NULL){
+    /*if ((config_keys = g_key_file_get_keys(config, "monocle", NULL, error)) == NULL) {
         printf("[[monocle] problem when loading config: %s\n", error->message);
         g_clear_error(error);
     }
 
-    for(i = 0; i <= LENGTH(config_keys); i++){
-        if(strcmp(config_keys[i], "scale") == 0){
+    for (i = 0; i <= LENGTH(config_keys); i++) {
+        if (strcmp(config_keys[i], "scale") == 0) {
             monocle_view_set_scale(image, g_key_file_get_double (config, "monocle", config_keys[i], error));
         }
     }*/
@@ -88,7 +89,7 @@ load_config (){
 
 /* saves the config file */
 static void
-save_config (){
+save_config () {
     GKeyFile *config;
 
     gchar *config_dir;
@@ -110,11 +111,11 @@ save_config (){
 
     config_buf = g_key_file_to_data(config, NULL, NULL);
     
-    if((config_fd = fopen(config_file, "w")) == NULL){
+    if ((config_fd = fopen(config_file, "w")) == NULL) {
         printf("failed to write config file at %s\n", config_file);
-    }else{
+    } else {
         bytes_written = fwrite(config_buf, sizeof(char), strlen(config_buf), config_fd);
-        if(bytes_written != strlen(config_buf))
+        if (bytes_written != strlen(config_buf))
             printf("error writing to config file at %s\n", config_file);
 
         fclose(config_fd);
@@ -126,16 +127,16 @@ save_config (){
 }
 
 static void
-cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
+cb_set_image (GtkWidget *widget, gchar *filename, gpointer data) {
     /* what am I even DOING this is absurd */
     gchar *newtitle;
     
-    if(filename != NULL ){
+    if (filename != NULL) {
         newtitle = g_malloc(strlen(filename) + 11);
         sprintf(newtitle, "%s - Monocle", filename);
         gtk_window_set_title(GTK_WINDOW(window), (const gchar *) newtitle);
         g_free(newtitle);
-    }else{
+    } else {
         gtk_window_set_title(GTK_WINDOW(window), "NOTHING - Monocle");
     }
 
@@ -143,17 +144,17 @@ cb_set_image (GtkWidget *widget, gchar *filename, gpointer data){
 }
 
 static void
-cb_rowcount_changed (GtkWidget *widget, gint rowcount, gpointer data){
-    if(rowcount <= 1 && settings.autohide_thumbpane)
+cb_rowcount_changed (GtkWidget *widget, gint rowcount, gpointer data) {
+    if (rowcount <= 1 && settings.autohide_thumbpane)
         gtk_widget_hide(vthumbbox);
-    else if(!gtk_widget_get_visible(vthumbbox))
+    else if (!gtk_widget_get_visible(vthumbbox))
         gtk_widget_show(vthumbbox);
         
 }
 
 /* Menu Actions */
 static void
-action_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+action_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu_item) {
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Image(s)", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_OPEN,
                                 GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
@@ -161,7 +162,7 @@ action_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu
 				                NULL);
     gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
 
-    if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT){ 
+    if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT) { 
         GSList *files;
         files = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER (chooser)); /*get uris doesn't encode right for thumbnails*/
         monocle_thumbpane_add_many(thumbpane, files);
@@ -173,7 +174,7 @@ action_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu
 }
 
 static void
-action_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+action_open_folder (gpointer callback_data, guint callback_action, GtkWidget *menu_item) {
     GtkWidget *recursive_toggle = gtk_check_button_new_with_label("Open Recursively?");
     GtkWidget *chooser = gtk_file_chooser_dialog_new("Open Folder", GTK_WINDOW(window), 
                                 GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
@@ -183,10 +184,10 @@ action_open_folder (gpointer callback_data, guint callback_action, GtkWidget *me
     gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
     gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(chooser), recursive_toggle);
     
-    if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT){ 
+    if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT) { 
         gchar *folder;
         gboolean recursive_load = FALSE;
-        if(gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(recursive_toggle)))
+        if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(recursive_toggle)))
             recursive_load = TRUE;
         folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (chooser));
         monocle_thumbpane_add_folder(thumbpane, folder, recursive_load);
@@ -198,7 +199,7 @@ action_open_folder (gpointer callback_data, guint callback_action, GtkWidget *me
 }
 
 static void
-action_edit_preferences (gpointer callback_data, guint callback_action, GtkWidget *menu_item){
+action_edit_preferences (gpointer callback_data, guint callback_action, GtkWidget *menu_item) {
     GtkWidget *preferences, *content_area, *table, *spin_threads, *check_scalegifs, *check_autohide_thumbpane;
     preferences = gtk_dialog_new_with_buttons("Monocle Preferences", GTK_WINDOW(window),
                                     GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT,
@@ -235,8 +236,8 @@ action_edit_preferences (gpointer callback_data, guint callback_action, GtkWidge
 }
 
 static void 
-action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data){
-    switch(gtk_radio_action_get_current_value(current)) {
+action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data) {
+    switch (gtk_radio_action_get_current_value(current)) {
         case 2:
             monocle_view_set_zoom_mode(image, MONOCLE_SCALE_FITHEIGHT);
             break;
@@ -254,18 +255,18 @@ action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer use
 }
 
 static void
-action_zoom_in (){
+action_zoom_in () {
     monocle_view_set_scale(image, monocle_view_get_scale(image) * 1.25);
 }
 
 static void
-action_zoom_out (){
+action_zoom_out () {
     monocle_view_set_scale(image, monocle_view_get_scale(image) * 0.8);
 }
 
 static void
-action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data){
-    switch(gtk_radio_action_get_current_value(current)) {
+action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data) {
+    switch (gtk_radio_action_get_current_value(current)) {
         case -1:
             monocle_thumbpane_sort_order_ascending (thumbpane);
             break;
@@ -287,14 +288,14 @@ action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user
 
 /* Button Callbacks */
 static gboolean
-cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data){
-    if(user_data == 0){
+cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data) {
+    if (user_data == 0) {
         monocle_thumbpane_remove_current(thumbpane);
     }
     return FALSE;
 }
 
-static void usage (){
+static void usage () {
     fprintf(stderr,
             "usage: %s [args] [imagefile/folder]\n"
             "\t-R               Recursively load files from a directory\n"
@@ -308,14 +309,14 @@ static void usage (){
 
 /* returns true so we can save the config */
 /* runs twice for some reason */
-static gboolean monocle_quit (){
+static gboolean monocle_quit () {
     save_config();
     gtk_main_quit();
     return TRUE;
 }
 
 /* Main Loop */
-int main (int argc, char *argv[]){
+int main (int argc, char *argv[]) {
     GtkWidget *view_win,
               *thumbadd, *thumbrm;
     GtkActionGroup *action_group;
@@ -329,22 +330,22 @@ int main (int argc, char *argv[]){
     /* Parse Arguments */
     int optc;
     extern char *optarg;
-    while((optc = getopt(argc, argv, "hvRs:")) != EOF)
-        switch(optc) {
+    while ((optc = getopt(argc, argv, "hvRs:")) != EOF)
+        switch (optc) {
             case 'R':
                 recursive_load = TRUE;
                 break;
             case 's':
-                if(!strcmp(optarg, "fitheight")){
+                if (!strcmp(optarg, "fitheight")) {
                     zoom_mode = MONOCLE_SCALE_FITHEIGHT;
                     printf("Setting scale to fit to height\n");
-                }else if(!strcmp(optarg, "fitwidth")){
+                }else if (!strcmp(optarg, "fitwidth")) {
                     zoom_mode = MONOCLE_SCALE_FITWIDTH;
                     printf("Setting scale to fit to width\n");
-                }else if(atof(optarg) > 0){ 
+                }else if (atof(optarg) > 0) { 
                     zoom_mode = MONOCLE_SCALE_CUSTOM;
                     scale = atof(optarg);
-                }else{
+                } else {
                     printf("Unknown scale %s, defaulting to fit to height\n", optarg);
                 }
                 break;
@@ -376,7 +377,7 @@ int main (int argc, char *argv[]){
     gtk_ui_manager_insert_action_group (uimanager, action_group, 0);
 
     gtk_ui_manager_add_ui_from_string (uimanager, monocle_ui, -1, &error);
-    if(error){
+    if (error) {
         printf("[monocle] problem when parsing menus: %s\n", error->message);
         g_error_free(error);
         exit(EXIT_FAILURE);
@@ -439,21 +440,21 @@ int main (int argc, char *argv[]){
     gtk_widget_show_all(window);
     
     /* Program Initialization */
-    if(settings.autohide_thumbpane)
+    if (settings.autohide_thumbpane)
         gtk_widget_hide(vthumbbox);
 
-    if(argc > 1){
+    if (argc > 1) {
 #ifdef WIN32
         strcpy(filearg, argv[argc-1]);
 #else
         realpath(argv[argc-1], filearg); /* ty gmn and GNU info */
 #endif
         /* am I even supposed to wrap these in enter/leave? supposedly since they're called outside of a callback I do */
-        if(g_file_test(filearg, G_FILE_TEST_IS_DIR)){
+        if (g_file_test(filearg, G_FILE_TEST_IS_DIR)) {
             gdk_threads_enter();
             monocle_thumbpane_add_folder(thumbpane, filearg, recursive_load);
             gdk_threads_leave();
-        }else{
+        } else {
             gdk_threads_enter();
             monocle_thumbpane_add_image(thumbpane, filearg);
             gdk_threads_leave();

@@ -1,4 +1,4 @@
-f = fixed, r = reopened, f(?) = haven't run into it (probably involves threading)
+f = fixed, r = reopened, n = no longer applies, f(?) = haven't run into it (probably involves threading)
 
 [f] animations don't work
 [ ] animations cease to play when the scale becomes ridiculously huge
@@ -15,7 +15,7 @@ f = fixed, r = reopened, f(?) = haven't run into it (probably involves threading
 [ ] unfreed memory obvious with enormous gif images, loading another image shows obvious leftovers in memory
 [ ] images are not centered
 [f] fit-to-window is broked
-[ ] fit-to-window infinite loops during size allocate
+[n] fit-to-window infinite loops during size allocate
 [f] commandline filepath arguments break thumbnail loading (trailing slash, relative paths)
 [f] segfault when removing an image half-way through loading or when the imagelist is empty (same bug probably)
 [ ] flash of some garbage data when flipping through images
@@ -23,8 +23,9 @@ f = fixed, r = reopened, f(?) = haven't run into it (probably involves threading
 [ ] monocle hangs for some unknown reason sometimes when loading gifs (might be these nvidia drivers)
 [ ] gifs are scaled regardless of scale_gifs setting when loading first (this is because we can't know if it is or not animated until later)
 [ ] C90 warnings everywhere
-[ ] some images scale to improper dimensions
-[ ] default menu setting of zoom level is not reflective of actual zoom level
+[f] some images scale to improper dimensions
+[f] default menu setting of zoom level is not reflective of actual zoom level
 [f(?)] (monocle:30680): Gtk-WARNING **: gtktreemodel.c:2117: bad row reference, proxy has no outstanding row references <- ???
 [f(?)] segfault occasionally probably because of threading
 [f(?)] while testing ran into deadlocks in gdb, couldn't reproduce outside of gdb though
+[ ] zooming out leaves partial data of image from previous size (gdk_window_clear won't work due to bug #4)

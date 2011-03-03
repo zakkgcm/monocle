@@ -4,7 +4,6 @@
 
 #include <glib-object.h>
 #include <gtk/gtk.h>
-#include <gdk-pixbuf/gdk-pixbuf.h>
 
 #define MONOCLE_TYPE_VIEW               (monocle_view_get_type())
 #define MONOCLE_VIEW(obj)               (G_TYPE_CHECK_INSTANCE_CAST ((obj), MONOCLE_TYPE_VIEW, MonocleView))

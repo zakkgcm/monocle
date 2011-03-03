@@ -1,8 +1,8 @@
 # Makefile config for monocle
-# cheeseum 2010
+# cheeseum 2011
 
 PROGNAME = monocle
-VERSION  = 1.6
+VERSION  = 1.7
 
 PREFIX     ?= /usr
 INSTALLDIR ?= ${DESTDIR}${PREFIX}
@@ -13,7 +13,7 @@ GTK_CFLAGS  = $(shell $(PKG_CONFIG) --cflags gtk+-2.0)
 GTK_LDFLAGS = $(shell $(PKG_CONFIG) --libs gtk+-2.0)
 DEBUGFLAGS = -ggdb -ggdb3
 CFLAGS	= -O3 -march=native -lgthread-2.0 -pedantic -Wall -DVERSION=\"${VERSION}\"  -DPROGNAME=\"${PROGNAME}\" ${GTK_CFLAGS}
-CFLAGS  += ${DEBUGFLAGS} #comment this out to remove debugging symbols
+CFLAGS  += ${DEBUGFLAGS} #comment this out to remove debugging symbols, they'll be stripped on install regardless
 LDFLAGS = -Wl ${GTK_LDFLAGS}
 
 # Change this to your mingw environment dir
