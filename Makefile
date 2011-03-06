@@ -6,6 +6,7 @@ include config.mk
 
 SRC = monocle.c monocleview.c monoclethumbpane.c\
       utils/md5.c
+HEAD = $(wildcard *.h)
 OBJ = ${SRC:.c=.o}
 W32OBJ = $(SRC:.c=-w32.o)
 
@@ -19,15 +20,15 @@ options:
 	@echo "CFLAGS:  ${CFLAGS}"
 	@echo "LDFLAGS: ${LDFLAGS}"
 
-%.o: %.c
+%.o: %.c ${HEAD}
 	@echo ${CC} $<
 	@${CC} -c ${CFLAGS} $< -o $@
 
-%-w32.o: %.c
+%-w32.o: %.c ${HEAD}
 	@echo ${W32CC} $<
 	@${W32CC} -c ${W32CFLAGS} $< -o $@
 
-monocle: options ${OBJ}
+monocle: options  ${OBJ}
 	@echo ${CC} ${OBJ} -o $@
 	@${CC} ${LDFLAGS} ${OBJ} -o $@
 

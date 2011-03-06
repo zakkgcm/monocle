@@ -290,6 +290,12 @@ monocle_thumbpane_remove_many (MonocleThumbpane *self, GList *row_refs) {
 }
 
 void
+monocle_thumbpane_remove_all (MonocleThumbpane *self) {
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview)));    
+}
+
+void
 monocle_thumbpane_remove_current (MonocleThumbpane *self) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     GtkTreeModel *model;

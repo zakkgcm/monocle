@@ -16,7 +16,7 @@
 MonocleView *image;
 MonocleThumbpane *thumbpane;
 GtkUIManager *uimanager;
-GtkWidget *window, *vbox, *hbox, *vthumbbox, *hthumbbox;
+GtkWidget *window, *vbox, *hbox, *vthumbbox;
 
 struct _settings {
     gboolean autohide_thumbpane;
@@ -234,6 +234,17 @@ action_edit_preferences (gpointer callback_data, guint callback_action, GtkWidge
     return;
 }
 
+static void
+action_remove_selected () {
+    monocle_thumbpane_remove_current(thumbpane);
+}
+
+static void
+action_remove_all () {
+    monocle_thumbpane_remove_all(thumbpane);
+}
+
+
 static void 
 action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data) {
     switch (gtk_radio_action_get_current_value(current)) {
@@ -285,15 +296,6 @@ action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user
     return;
 }
 
-/* Button Callbacks */
-static gboolean
-cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data) {
-    if (user_data == 0) {
-        monocle_thumbpane_remove_current(thumbpane);
-    }
-    return FALSE;
-}
-
 static void usage () {
     fprintf(stderr,
             "usage: %s [args] [imagefile/folder]\n"
@@ -316,8 +318,7 @@ static gboolean monocle_quit () {
 
 /* Main Loop */
 int main (int argc, char *argv[]) {
-    GtkWidget *view_win,
-              *thumbadd, *thumbrm;
+    GtkWidget *view_win;
     GtkActionGroup *action_group;
     GError *error = NULL;
 
@@ -397,17 +398,8 @@ int main (int argc, char *argv[]) {
     g_signal_connect(G_OBJECT(thumbpane), "rowcount-changed", G_CALLBACK(cb_rowcount_changed), NULL);
 
     vthumbbox   = gtk_vbox_new(FALSE, 1);
-    hthumbbox   = gtk_hbutton_box_new();
-    thumbadd    = gtk_button_new_from_stock(GTK_STOCK_ADD);
-    thumbrm     = gtk_button_new_from_stock(GTK_STOCK_REMOVE);
 
-    g_signal_connect(G_OBJECT(thumbadd), "button-release-event", G_CALLBACK(cb_thumbpane_addrmbutton), GINT_TO_POINTER(1));
-    g_signal_connect(G_OBJECT(thumbrm), "button-release-event", G_CALLBACK(cb_thumbpane_addrmbutton), GINT_TO_POINTER(0));
-
-    gtk_box_pack_start(GTK_BOX(hthumbbox), thumbadd, FALSE, FALSE, 0);
-    gtk_box_pack_end(GTK_BOX(hthumbbox), thumbrm, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vthumbbox), GTK_WIDGET(thumbpane), TRUE, TRUE, 0);
-    gtk_box_pack_end(GTK_BOX(vthumbbox), hthumbbox, FALSE, FALSE, 0);
 
     /* Main VBox */
     vbox = gtk_vbox_new(FALSE, 1);

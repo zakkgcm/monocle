@@ -14,12 +14,13 @@ static void action_open_file ();
 static void action_open_folder ();
 static void action_edit_preferences ();
 
+static void action_remove_selected ();
+static void action_remove_all ();
+
 static void action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
 static void action_zoom_in ();
 static void action_zoom_out ();
 static void action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
-
-static gboolean cb_thumbpane_addrmbutton (GtkWidget *button, GdkEventButton *event, gpointer user_data);
 
 static const gchar *monocle_ui =
 "<ui>"
@@ -27,6 +28,8 @@ static const gchar *monocle_ui =
 "        <menu name='FileMenu' action='FileMenuAction'>"
 "            <menuitem name='Open'        action='OpenFile'/>"
 "            <menuitem name='Open Folder' action='OpenFolder'/>"
+"            <menuitem name='Remove Selected'      action='RemoveSelected'/>"
+"            <menuitem name='Clear List'           action='RemoveAll'/>"
 "            <menuitem name='Quit'        action='QuitAction'/>"
 "        </menu>"
 "        <menu name='EditMenu' action='EditMenuAction'>"
@@ -74,6 +77,18 @@ static GtkActionEntry main_entries[] = {
       "Preferences", NULL,
       "Edit Preferences",
       G_CALLBACK(action_edit_preferences) },
+    
+
+    { "RemoveSelected", GTK_STOCK_REMOVE,
+      "Remove Selected From List", "Delete",
+      "Remove the Selected Images from the List",
+      G_CALLBACK(action_remove_selected) },
+    
+    { "RemoveAll", GTK_STOCK_CLEAR,
+      "Clear List", "<Shift>Delete",
+      "Clear the List",
+      G_CALLBACK(action_remove_all) },
+    
 
     { "QuitAction", GTK_STOCK_QUIT,
       "Quit", "<Control>Q",
