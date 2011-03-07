@@ -22,7 +22,7 @@ typedef struct _MonocleThumbpanePrivate {
 
     GThreadPool *pool;
     gint num_threads;
-    
+
     gint rowcount;
     GdkPixbuf *default_thumb;
 } MonocleThumbpanePrivate;
@@ -93,10 +93,10 @@ monocle_thumbpane_init (MonocleThumbpane *self) {
 
     gtk_tree_view_set_model(GTK_TREE_VIEW(treeview), GTK_TREE_MODEL(list));
     g_object_unref(list);
- 
+
     gtk_tree_view_set_enable_search(GTK_TREE_VIEW(treeview), FALSE); 
-    
-    gtk_tree_selection_set_mode(sel, GTK_SELECTION_BROWSE);
+
+    gtk_tree_selection_set_mode(sel, GTK_SELECTION_MULTIPLE);
     gtk_tree_selection_set_select_function(sel, cb_row_selected, self, NULL);
 
     gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(list), SORT_NAME, cb_sort_func, GINT_TO_POINTER(SORT_NAME), NULL);
@@ -109,7 +109,7 @@ monocle_thumbpane_init (MonocleThumbpane *self) {
     priv->sort_order = GTK_SORT_ASCENDING;
     gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(list), SORT_NAME, priv->sort_order);
     priv->treeview = GTK_TREE_VIEW(treeview);
-    
+
     priv->num_threads = 2;
 
     /* this WILL fail horribly if there is no mystery to be found */
@@ -137,13 +137,13 @@ monocle_thumbpane_class_init (MonocleThumbpaneClass *klass) {
                       g_cclosure_marshal_VOID__INT, G_TYPE_NONE, 
                       1, G_TYPE_INT );
 
-}
+    }
 
-MonocleThumbpane
-*monocle_thumbpane_new () {
+    MonocleThumbpane
+    *monocle_thumbpane_new () {
     MonocleThumbpane *thumbpane = g_object_new(MONOCLE_TYPE_THUMBPANE, NULL);
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(thumbpane);
-    
+
     /* fixes GTK_IS_RANGE error */
     gtk_container_add(GTK_CONTAINER(thumbpane), GTK_WIDGET(priv->treeview));
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(thumbpane), GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
@@ -159,15 +159,15 @@ monocle_thumbpane_add_image (MonocleThumbpane *self, gchar *filename) {
     GtkTreeIter row;
 
     thumb = generate_thumbnail(filename);
-    
+
     list = GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview));
     gtk_list_store_append(list, &row);
     gtk_list_store_set(list, &row, COL_FILENAME, filename, -1);
     gtk_list_store_set(list, &row, COL_THUMBNAIL, thumb, -1);
-    
+
     gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &row);
 
-    g_object_unref(thumb);
+g_object_unref(thumb);
 }
 
 /* Add a whole bunch of images (or just two whichever) */
@@ -178,18 +178,18 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames) {
     GtkListStore *list;
     GtkTreeIter row;
     gchar *iterstring;
-    
+
     if (priv->pool == NULL) {
         /* TODO: make the deadpool free itself when finished (after some certain idle time maybe) */
         /* LOOK! LOOK! THERE IS THE DEADPOOL! */
         g_thread_pool_set_max_idle_time(100);
         priv->pool = g_thread_pool_new((GFunc)thumbnail_thread, NULL, priv->num_threads, FALSE, NULL);
     }
-    
+
     list = GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview));
     g_object_ref(list);
     gtk_tree_view_set_model(priv->treeview, NULL);
-    
+
     do {
         gtk_list_store_insert_with_values(list, &row, 
                                             gtk_tree_model_iter_n_children(GTK_TREE_MODEL(list), NULL),
@@ -224,7 +224,7 @@ monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean re
     GSList *filenames;
     const gchar *filename;
     gchar *filepath;
-    
+
     filenames = NULL;
 
     if ((folder_tree = g_dir_open(folder, 0, NULL)) == NULL)
@@ -245,7 +245,7 @@ monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean re
         }
     }
     filenames = g_slist_reverse(filenames);
-    
+
     g_dir_close(folder_tree);
     if (filenames != NULL) {
         monocle_thumbpane_add_many(self, filenames);
@@ -257,11 +257,16 @@ monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean re
 void
 monocle_thumbpane_remove (MonocleThumbpane *self, GtkTreeIter *row) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeIter *nextrow = row; /* should I rather not declare this as a pointer? */
+    gboolean valid;
     
+    valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(gtk_tree_view_get_model(priv->treeview)), nextrow);
     gtk_list_store_remove(GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview)), row);
 
-    g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
-    /* TODO: Make this select the next available item in the list */
+    if(valid)
+        gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), nextrow);
+    else               
+        g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
 }
 
 void
@@ -270,6 +275,8 @@ monocle_thumbpane_remove_many (MonocleThumbpane *self, GList *row_refs) {
     GtkListStore *list;
     GtkTreePath *path;
     GtkTreeIter row;
+    GtkTreeIter nextrow;
+    gboolean valid = FALSE;
 
     list = GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview));
     g_object_ref(list);
@@ -278,21 +285,30 @@ monocle_thumbpane_remove_many (MonocleThumbpane *self, GList *row_refs) {
     while (row_refs != NULL) {
         path = gtk_tree_row_reference_get_path((GtkTreeRowReference *)row_refs->data);
         if (gtk_tree_model_get_iter(GTK_TREE_MODEL(list), &row, path)) {
+            nextrow = row;
+            valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(list), &nextrow);
             gtk_list_store_remove(list, &row);    
         }
         row_refs = row_refs->next;
     }
     
     gtk_tree_view_set_model(priv->treeview, GTK_TREE_MODEL(list));
-    
-    g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
-    /* TODO: Make this select the next available item in the list */
+     
+    if (!valid) {
+        if (!gtk_tree_model_get_iter_first(GTK_TREE_MODEL(list), &nextrow)) {
+             g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
+             return;
+        }
+    }
+
+    gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &nextrow);
 }
 
 void
 monocle_thumbpane_remove_all (MonocleThumbpane *self) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
-    gtk_list_store_clear(GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview)));    
+    gtk_list_store_clear(GTK_LIST_STORE(gtk_tree_view_get_model(priv->treeview)));  
+    g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
 }
 
 void
@@ -322,6 +338,8 @@ monocle_thumbpane_remove_current (MonocleThumbpane *self) {
 }
 
 /* These seem redundant, maybe have an arg with some exposed ENUMS or something */
+/* FIXME: make these convenience functions that call something else */
+
 void
 monocle_thumbpane_sort_by_name (MonocleThumbpane *self) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
@@ -390,6 +408,9 @@ cb_row_selected (GtkTreeSelection *selection,
     MonocleThumbpane *self = MONOCLE_THUMBPANE(user_data);
     GtkTreeIter iter;
     gchar *filename;
+    
+    /* FIXME: make this not emit if there is more than one selected */
+    /* FIXME: make this not emit when browising using ctrl */
 
     if (!curpath) {
         /* handle this error <- what? */

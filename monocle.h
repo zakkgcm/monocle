@@ -77,7 +77,6 @@ static GtkActionEntry main_entries[] = {
       "Preferences", NULL,
       "Edit Preferences",
       G_CALLBACK(action_edit_preferences) },
-    
 
     { "RemoveSelected", GTK_STOCK_REMOVE,
       "Remove Selected From List", "Delete",
@@ -88,7 +87,6 @@ static GtkActionEntry main_entries[] = {
       "Clear List", "<Shift>Delete",
       "Clear the List",
       G_CALLBACK(action_remove_all) },
-    
 
     { "QuitAction", GTK_STOCK_QUIT,
       "Quit", "<Control>Q",
