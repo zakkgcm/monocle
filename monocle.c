@@ -20,6 +20,7 @@ GtkWidget *window, *vbox, *hbox, *vthumbbox;
 
 struct _settings {
     gboolean autohide_thumbpane;
+    gchar *lastdir;
 }; 
 static struct _settings settings;
 
@@ -59,12 +60,17 @@ load_config () {
         }
         monocle_thumbpane_set_num_threads(thumbpane, conf_threads);
 
+        settings.lastdir = g_key_file_get_string(config, "monocle", "lastdir", &error);
+        g_clear_error(&error);
+
         conf_scalegifs = g_key_file_get_boolean(config, "monocle", "scalegifs", &error);
         g_clear_error(&error);
         monocle_view_set_scale_gifs(image, conf_scalegifs);
 
         settings.autohide_thumbpane = g_key_file_get_boolean(config, "thumbpane", "autohide", &error);
         g_clear_error(&error);
+
+        settings.lastdir = g_key_file_get_string(config, "monocle", "lastdir", &error);
 
         g_key_file_free(config);
 
@@ -105,6 +111,7 @@ save_config () {
     config = g_key_file_new();
 
     g_key_file_set_integer(config, "monocle", "threads", monocle_thumbpane_get_num_threads(thumbpane));
+    g_key_file_set_string(config, "monocle", "lastdir", settings.lastdir);
     g_key_file_set_boolean(config, "monocle", "scalegifs", monocle_view_get_scale_gifs(image));
     g_key_file_set_boolean(config, "thumbpane", "autohide", settings.autohide_thumbpane);
 
@@ -160,12 +167,18 @@ action_open_file (gpointer callback_data, guint callback_action, GtkWidget *menu
 				                GTK_STOCK_OPEN, GTK_RESPONSE_ACCEPT,
 				                NULL);
     gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
+    if(settings.lastdir != NULL)
+        gtk_file_chooser_set_current_folder_uri(GTK_FILE_CHOOSER(chooser), settings.lastdir);
 
     if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT) { 
         GSList *files;
         files = gtk_file_chooser_get_filenames(GTK_FILE_CHOOSER (chooser)); /*get uris doesn't encode right for thumbnails*/
         monocle_thumbpane_add_many(thumbpane, files);
         g_slist_free (files);
+    
+        if(settings.lastdir != NULL)
+            g_free(settings.lastdir);
+        settings.lastdir = gtk_file_chooser_get_current_folder_uri(GTK_FILE_CHOOSER(chooser));
     }
     gtk_widget_destroy (chooser);
     
@@ -182,7 +195,9 @@ action_open_folder (gpointer callback_data, guint callback_action, GtkWidget *me
 				                NULL);
     gtk_file_chooser_set_select_multiple(GTK_FILE_CHOOSER(chooser), TRUE);
     gtk_file_chooser_set_extra_widget(GTK_FILE_CHOOSER(chooser), recursive_toggle);
-    
+    if(settings.lastdir != NULL)
+        gtk_file_chooser_set_current_folder_uri(GTK_FILE_CHOOSER(chooser), settings.lastdir);
+
     if (gtk_dialog_run (GTK_DIALOG (chooser)) == GTK_RESPONSE_ACCEPT) { 
         gchar *folder;
         gboolean recursive_load = FALSE;
@@ -191,6 +206,10 @@ action_open_folder (gpointer callback_data, guint callback_action, GtkWidget *me
         folder = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER (chooser));
         monocle_thumbpane_add_folder(thumbpane, folder, recursive_load);
         g_free (folder);
+
+        if(settings.lastdir != NULL)
+            g_free(settings.lastdir);
+        settings.lastdir = gtk_file_chooser_get_current_folder_uri(GTK_FILE_CHOOSER(chooser));
     }
     gtk_widget_destroy (chooser);
     
@@ -296,6 +315,14 @@ action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user
     return;
 }
 
+static void
+action_view_thumbpane (GtkToggleAction *toggle, gpointer user_data) {
+    if(gtk_toggle_action_get_active(toggle))
+        gtk_widget_show(vthumbbox);
+    else
+        gtk_widget_hide(vthumbbox);
+}
+
 static void usage () {
     fprintf(stderr,
             "usage: %s [args] [imagefile/folder]\n"
@@ -377,6 +404,7 @@ int main (int argc, char *argv[]) {
                                                                         G_CALLBACK(action_sort_menu), NULL);
     gtk_action_group_add_radio_actions (action_group, sortdirection_entries, G_N_ELEMENTS(sortdirection_entries), -1,
                                                                              G_CALLBACK(action_sort_menu), NULL);
+    gtk_action_group_add_toggle_actions (action_group, view_entries, G_N_ELEMENTS(view_entries), NULL);
     gtk_ui_manager_insert_action_group (uimanager, action_group, 0);
 
     gtk_ui_manager_add_ui_from_string (uimanager, monocle_ui, -1, &error);

@@ -22,6 +22,8 @@ static void action_zoom_in ();
 static void action_zoom_out ();
 static void action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
 
+static void action_view_thumbpane (GtkToggleAction *toggle, gpointer user_data);
+
 static const gchar *monocle_ui =
 "<ui>"
 "    <menubar name='MainMenubar'>"
@@ -42,6 +44,8 @@ static const gchar *monocle_ui =
 "            <menuitem name='Zoom In'        action='Zoom_In'/>"
 "            <menuitem name='Zoom Out'       action='Zoom_Out'/>"
 "            <menuitem name='Zoom 1x'        action='Scale_1x'/>"
+"            <separator/>"
+"            <menuitem name='Thumbpane'      action='ViewThumbpane'/>"
 "        </menu>"
 "        <menu name='SortMenu' action='SortMenuAction'>"
 "            <menuitem name='Sort By Name'              action='SortName'/>"
@@ -159,6 +163,13 @@ static GtkRadioActionEntry sortdirection_entries[] = {
     { "SortDescending", NULL,
       "Descending", NULL,
       "Sort Images in Descending Order", -2 },
+};
+
+static GtkToggleActionEntry view_entries[] = {
+    { "ViewThumbpane", NULL,
+      "Thumpane", NULL,
+      "Toggle Viewing of the Thumbpane", 
+      G_CALLBACK(action_view_thumbpane), TRUE },
 };
 
 #endif /*__MONOCLE_H__*/
