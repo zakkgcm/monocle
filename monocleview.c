@@ -47,6 +47,7 @@ static void cb_loader_size_prepared     (GdkPixbufLoader *loader, gint width, gi
 static void cb_loader_area_prepared     (GdkPixbufLoader *loader, MonocleView *self);
 static void cb_loader_area_updated      (GdkPixbufLoader *loader, gint x, gint y, gint width, gint height, MonocleView *self);
 static void cb_loader_closed            (GdkPixbufLoader *loader, MonocleView *self);
+static void clear_edges                 (MonocleView *self);
 static void redraw_image                (MonocleView *self, gint x, gint y, gint width, gint height);
 
 static gboolean cb_advance_anim         (MonocleView *self);
@@ -221,6 +222,7 @@ monocle_view_scale_image (MonocleView *self) {
 
     gtk_layout_set_size(GTK_LAYOUT(self), gdk_pixbuf_get_width(priv->img), gdk_pixbuf_get_height(priv->img));
     redraw_image(self, 0, 0, -1, -1);
+    clear_edges(self);
 }
 
 static gboolean
@@ -331,6 +333,25 @@ cb_advance_anim (MonocleView *self) {
     g_timeout_add(gdk_pixbuf_animation_iter_get_delay_time(priv->iter), (GSourceFunc)cb_advance_anim, self);
 
     return FALSE;
+}
+
+static void
+clear_edges (MonocleView *self) {
+    MonocleViewPrivate *priv = MONOCLE_VIEW_GET_PRIVATE(self);
+    GdkWindow *window = GTK_LAYOUT(self)->bin_window;
+    gint pwidth, pheight, wwidth, wheight;
+
+    pwidth = gdk_pixbuf_get_width(priv->img);
+    pheight = gdk_pixbuf_get_height(priv->img);
+    wwidth = GTK_WIDGET(self)->allocation.width;
+    wheight = GTK_WIDGET(self)->allocation.height;
+
+    if(wwidth > pwidth)
+        gdk_window_clear_area(window, pwidth, 0, wwidth - pwidth, wheight);
+
+    if(wheight > pheight)
+        gdk_window_clear_area(window, 0, pheight, wwidth, wheight - pheight);
+
 }
 
 /* Specify -1 for width/height to use the pixbuf's width/height (ala gdk_draw_pixbuf) */

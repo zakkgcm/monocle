@@ -32,6 +32,6 @@ use GTK for user interface for consistency.
         -v          | version info
         -h          | prints help message
 
-files are added to a list of images to be viewed as oppose to viewing a folder or bunch at a time
-delete removes images from the list, shift delete clears it
+files are added to a list of images to be viewed as oppose to viewing a folder or bunch at a time  
+delete removes images from the list, shift delete clears it  
 plus and minus to zoom

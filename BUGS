@@ -1,4 +1,4 @@
-f = fixed, r = reopened, n = no longer applies, f(?) = haven't run into it (probably involves threading)
+f = fixed, r = reopened, n = no longer applies, f(?) = haven't run into it recently (probably involves threading)
 
 [f] animations don't work
 [ ] animations cease to play when the scale becomes ridiculously huge
@@ -28,4 +28,4 @@ f = fixed, r = reopened, n = no longer applies, f(?) = haven't run into it (prob
 [f(?)] (monocle:30680): Gtk-WARNING **: gtktreemodel.c:2117: bad row reference, proxy has no outstanding row references <- ???
 [f(?)] segfault occasionally probably because of threading
 [f(?)] while testing ran into deadlocks in gdb, couldn't reproduce outside of gdb though
-[ ] zooming out leaves partial data of image from previous size (gdk_window_clear won't work due to bug #4)
+[f] zooming out leaves partial data of image from previous size (gdk_window_clear won't work due to bug #4)
