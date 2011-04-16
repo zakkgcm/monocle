@@ -2,7 +2,7 @@
 # cheeseum 2011
 
 PROGNAME = monocle
-VERSION  = 1.7
+VERSION  = 1.8
 
 PREFIX     ?= /usr
 INSTALLDIR ?= ${DESTDIR}${PREFIX}

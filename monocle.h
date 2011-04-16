@@ -20,6 +20,9 @@ static void action_remove_all ();
 static void action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
 static void action_zoom_in ();
 static void action_zoom_out ();
+static void action_next_folder ();
+static void action_prev_folder ();
+
 static void action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
 
 static void action_view_thumbpane (GtkToggleAction *toggle, gpointer user_data);
@@ -59,6 +62,8 @@ static const gchar *monocle_ui =
 "        <accelerator name='kp_add' action='Zoom_In_KPadd'/>"
 "        <accelerator name='equal' action='Zoom_In_Equal'/>"
 "        <accelerator name='kp_subtract' action='Zoom_Out_KPsubtract'/>"
+"        <accelerator name='leftarrow' action='Prev_Folder'/>"
+"        <accelerator name='rightarrow' action='Next_Folder'/>"   
 "</ui>";
 
 static GtkActionEntry main_entries[] = {
@@ -96,6 +101,15 @@ static GtkActionEntry main_entries[] = {
       "Quit", "<Control>Q",
       "Exit Monocle",
       G_CALLBACK(monocle_quit) },
+
+    /* these SHOULD be just Right/Left but some widget is hogging those */
+    { "Next_Folder", NULL,
+      "Next Folder", "<Ctrl>Right",
+      "Next Folder", G_CALLBACK(action_next_folder) },
+    
+    { "Prev_Folder", NULL,
+      "Prev Folder", "<Ctrl>Left",
+      "Prev Folder", G_CALLBACK(action_prev_folder) },
 };
 
 /* this is fucking confusing, use scale OR zoom not both */

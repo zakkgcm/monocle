@@ -39,6 +39,9 @@ void monocle_thumbpane_remove_many      (MonocleThumbpane *self, GList *row_refs
 void monocle_thumbpane_remove_current   (MonocleThumbpane *self);
 void monocle_thumbpane_remove_all       (MonocleThumbpane *self);
 
+void monocle_thumbpane_next_folder      (MonocleThumbpane *self);
+void monocle_thumbpane_prev_folder      (MonocleThumbpane *self);
+
 void monocle_thumbpane_sort_by_name     (MonocleThumbpane *self);
 void monocle_thumbpane_sort_by_date     (MonocleThumbpane *self);
 void monocle_thumbpane_sort_by_size     (MonocleThumbpane *self);

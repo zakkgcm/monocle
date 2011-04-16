@@ -294,6 +294,15 @@ action_zoom_out () {
 }
 
 static void
+action_next_folder () {
+    monocle_thumbpane_next_folder(thumbpane);
+}
+static void
+action_prev_folder () {
+    monocle_thumbpane_prev_folder(thumbpane);
+}
+
+static void
 action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data) {
     switch (gtk_radio_action_get_current_value(current)) {
         case -1:
@@ -356,6 +365,9 @@ int main (int argc, char *argv[]) {
 
     int i;
 
+    /* init here to allow gtk args */
+    gtk_init(&argc, &argv);
+
     /* Parse Arguments */
     int optc;
     extern int optind;
@@ -388,7 +400,6 @@ int main (int argc, char *argv[]) {
         }
 
     /* Gtk Setup */
-    gtk_init(&argc, &argv);
     g_thread_init(NULL);
     gdk_threads_init();
 
@@ -444,6 +455,8 @@ int main (int argc, char *argv[]) {
     monocle_view_set_zoom_mode(image, zoom_mode);
     
     gtk_widget_set_size_request(GTK_WIDGET(thumbpane), 150, -1);
+    
+    //gtk_orientable_set_orientation(GTK_ORIENTABLE(hbox), GTK_ORIENTATION_VERTICAL);
 
     /* We've made our widgets, load config */
     load_config();
