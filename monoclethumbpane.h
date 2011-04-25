@@ -37,10 +37,12 @@ void monocle_thumbpane_add_folder   (MonocleThumbpane *self, gchar *folder, gboo
 void monocle_thumbpane_remove           (MonocleThumbpane *self, GtkTreeIter *row);
 void monocle_thumbpane_remove_many      (MonocleThumbpane *self, GList *row_refs);
 void monocle_thumbpane_remove_current   (MonocleThumbpane *self);
+void monocle_thumbpane_remove_folder    (MonocleThumbpane *self, gchar *folder);
 void monocle_thumbpane_remove_all       (MonocleThumbpane *self);
 
 void monocle_thumbpane_next_folder      (MonocleThumbpane *self);
 void monocle_thumbpane_prev_folder      (MonocleThumbpane *self);
+void monocle_thumbpane_select_folder    (MonocleThumbpane *self, gchar *folder);
 
 void monocle_thumbpane_sort_by_name     (MonocleThumbpane *self);
 void monocle_thumbpane_sort_by_date     (MonocleThumbpane *self);

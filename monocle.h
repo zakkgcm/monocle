@@ -15,6 +15,7 @@ static void action_open_folder ();
 static void action_edit_preferences ();
 
 static void action_remove_selected ();
+static void action_remove_folder ();
 static void action_remove_all ();
 
 static void action_scale_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
@@ -33,6 +34,7 @@ static const gchar *monocle_ui =
 "        <menu name='FileMenu' action='FileMenuAction'>"
 "            <menuitem name='Open'        action='OpenFile'/>"
 "            <menuitem name='Open Folder' action='OpenFolder'/>"
+"            <menuitem name='Remove Folder'      action='RemoveFolder'/>"
 "            <menuitem name='Remove Selected'      action='RemoveSelected'/>"
 "            <menuitem name='Clear List'           action='RemoveAll'/>"
 "            <menuitem name='Quit'        action='QuitAction'/>"
@@ -92,6 +94,11 @@ static GtkActionEntry main_entries[] = {
       "Remove the Selected Images from the List",
       G_CALLBACK(action_remove_selected) },
     
+    { "RemoveFolder", GTK_STOCK_REMOVE,
+      "Remove Current Folder", "<Ctrl>Delete",
+      "Remove the Selected Folder from the List",
+      G_CALLBACK(action_remove_folder) },
+
     { "RemoveAll", GTK_STOCK_CLEAR,
       "Clear List", "<Shift>Delete",
       "Clear the List",

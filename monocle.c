@@ -254,6 +254,11 @@ action_edit_preferences (gpointer callback_data, guint callback_action, GtkWidge
 }
 
 static void
+action_remove_folder () {
+    monocle_thumbpane_remove_folder(thumbpane, NULL);
+}
+
+static void
 action_remove_selected () {
     monocle_thumbpane_remove_current(thumbpane);
 }
