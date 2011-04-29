@@ -61,14 +61,15 @@ enum {
 
 /*static void monocle_thumbpane_size_allocate (GtkWidget *widget, GtkAllocation *allocation);*/
 static gboolean cb_row_selected (GtkTreeSelection *selection, GtkTreeModel *model, GtkTreePath *path, gboolean curpath, gpointer user_data);
-static void cb_row_inserted (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, MonocleThumbpane *self);
-static void cb_row_deleted  (GtkTreeModel *model, GtkTreePath *path, MonocleThumbpane *self);
+static void cb_row_inserted      (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, MonocleThumbpane *self);
+static void cb_row_child_toggled (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, MonocleThumbpane *self);
+static void cb_row_deleted       (GtkTreeModel *model, GtkTreePath *path, MonocleThumbpane *self);
 
 static gint cb_sort_func (GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer user_data);
 static gint sort_func_date (gchar *a, gchar *b);
 static gint sort_func_size (gchar *a, gchar *b);
 
-static gboolean get_folder_in_model (MonocleThumbpane *self, MonocleThumbpaneFolder *out, gchar *folder);
+static gint get_folder_in_model (MonocleThumbpane *self, MonocleThumbpaneFolder *out, gchar *folder);
 static void create_folder_in_model (MonocleThumbpane *self, MonocleThumbpaneFolder *out, gchar *folder);
 static void thumbnail_thread (GtkTreeRowReference *rowref);
 static GdkPixbuf *generate_thumbnail (gchar *filename);
@@ -117,6 +118,7 @@ monocle_thumbpane_init (MonocleThumbpane *self) {
     gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(tree), SORT_SIZE, cb_sort_func, GINT_TO_POINTER(SORT_SIZE), NULL);
 
     g_signal_connect_object(G_OBJECT(tree), "row-inserted", G_CALLBACK(cb_row_inserted), self, 0);
+    g_signal_connect_object(G_OBJECT(tree), "row-has-child-toggled", G_CALLBACK(cb_row_child_toggled), self, 0);
     g_signal_connect_object(G_OBJECT(tree), "row-deleted",  G_CALLBACK(cb_row_deleted), self, 0);
 
     priv->sort_order = GTK_SORT_ASCENDING;
@@ -197,7 +199,7 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames) {
     /*GdkPixbuf *thumb;*/
     GtkTreeStore *tree;
     GtkTreeModel *treefilter;
-    GtkTreeIter row, filterrow, folder;
+    GtkTreeIter row, filterrow;
     gchar *iterstring;
 
     if (priv->pool == NULL) {
@@ -208,7 +210,6 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames) {
     }
 
     tree = GTK_TREE_STORE(priv->model);
-    //g_object_ref(tree);
     treefilter = gtk_tree_view_get_model(priv->treeview);
     g_object_ref(treefilter);
     gtk_tree_view_set_model(priv->treeview, NULL);
@@ -221,7 +222,7 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames) {
 
         /* no need to check for validity, file will be appended to the root */
         foldername = g_path_get_dirname((gchar *)filenames->data);
-        if(!get_folder_in_model(self, &folderdata, foldername))
+        if (get_folder_in_model(self, &folderdata, foldername) < 0)
             create_folder_in_model(self, &folderdata, foldername);
 
         gtk_tree_model_get_iter(priv->model, &folder, gtk_tree_row_reference_get_path((GtkTreeRowReference *)folderdata.rowref));
@@ -247,8 +248,7 @@ monocle_thumbpane_add_many (MonocleThumbpane *self, GSList *filenames) {
 
     /* TODO: make this select the first item in the list */
     /* ^ only if there's nothing else selected~ */
-    /* FIXME: if the last image added is NOT part of the currently filtered set this will throw a warning */
-    if(!gtk_tree_model_filter_convert_child_iter_to_iter(GTK_TREE_MODEL_FILTER(treefilter), &filterrow, &row))
+    if(gtk_tree_model_filter_convert_child_iter_to_iter(GTK_TREE_MODEL_FILTER(treefilter), &filterrow, &row))
         gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &filterrow);
     g_object_unref(treefilter);
 }
@@ -296,7 +296,6 @@ monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean re
 }
 
 /* remove functions take paths/iters in relation to the underlying model */
-/* FIXME: remove functions set the iter to the next valid row already */
 void
 monocle_thumbpane_remove (MonocleThumbpane *self, GtkTreeIter *row) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
@@ -317,7 +316,7 @@ monocle_thumbpane_remove_many (MonocleThumbpane *self, GList *row_refs) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     GtkTreeModel *model;
     GtkTreePath *path;
-    GtkTreeIter row, nextrow, nextrowfilter;
+    GtkTreeIter row, rowfilter;
     gboolean valid = FALSE;
 
     /* model is the saved model from the treeview (likely a treemodelfilter */
@@ -329,23 +328,23 @@ monocle_thumbpane_remove_many (MonocleThumbpane *self, GList *row_refs) {
     while (row_refs != NULL) {
         path = gtk_tree_row_reference_get_path((GtkTreeRowReference *)row_refs->data);
         if (gtk_tree_model_get_iter(priv->model, &row, path)) {
-            nextrow = row;
-            valid = gtk_tree_model_iter_next(priv->model, &nextrow);
-            gtk_tree_store_remove(GTK_TREE_STORE(priv->model), &row);    
+            valid = gtk_tree_store_remove(GTK_TREE_STORE(priv->model), &row);    
         }
         row_refs = row_refs->next;
     }
-    
     gtk_tree_view_set_model(priv->treeview, model);
-    gtk_tree_model_filter_convert_child_iter_to_iter(GTK_TREE_MODEL_FILTER(model), &nextrowfilter, &nextrow);
-    if (!valid) {
-        if (!gtk_tree_model_get_iter_first(model, &nextrowfilter)) {
+    
+    /* row should be set to the next avaliable valid row */
+    if ( !(valid && gtk_tree_model_filter_convert_child_iter_to_iter(GTK_TREE_MODEL_FILTER(model), &rowfilter, &row))) {
+        if (!gtk_tree_model_get_iter_first(model, &rowfilter)) {
+             /* if we get here then the next row is invalid AND there is no first row */
              g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
              return;
         }
     }
+    
+    gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &rowfilter);
 
-    gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &nextrowfilter);
 }
 
 void
@@ -360,26 +359,27 @@ void
 monocle_thumbpane_remove_folder (MonocleThumbpane *self, gchar *folder) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     GList *elem;
-    MonocleThumbpaneFolder *folderdata;
+    MonocleThumbpaneFolder folderdata;
     GtkTreeIter iter;
 
     if (folder == NULL) {
         elem = g_list_nth(priv->folders, priv->curfolder);
-        folderdata = (MonocleThumbpaneFolder *)elem->data;
+        memcpy(&folderdata, (MonocleThumbpaneFolder *)elem->data, sizeof(MonocleThumbpaneFolder));
     } else {
-        if(!get_folder_in_model(self, folderdata, folder))
+        if(get_folder_in_model(self, &folderdata, folder) < 0)
             return;
     }
 
-    if (!gtk_tree_model_get_iter(priv->model, &iter, gtk_tree_row_reference_get_path(folderdata->rowref)))
+    if (!gtk_tree_model_get_iter(priv->model, &iter, gtk_tree_row_reference_get_path(folderdata.rowref)))
             return;
-
-    /* this should be done in a pre-row-deleted signal but */
+    
+    /* has to be done here, row-deleted fires AFTER the row is deleted, so you can't get children */
+    /* in gtk+ 3.0 this is not the case though */
     priv->rowcount -= gtk_tree_model_iter_n_children(priv->model, &iter);
     g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[ROWCOUNT_SIGNAL], 0, priv->rowcount);
 
     gtk_tree_store_remove(GTK_TREE_STORE(priv->model), &iter);
-    priv->folders = g_list_remove(priv->folders, folderdata);
+    priv->folders = g_list_remove(priv->folders, &folderdata);
     monocle_thumbpane_next_folder(self);
 }
 
@@ -419,6 +419,9 @@ monocle_thumbpane_next_folder (MonocleThumbpane *self) {
     GtkTreeIter first;
     GtkTreeModel *filter;
     
+    if (g_list_length(priv->folders) <= 1)
+        return;
+
     elem = g_list_nth(priv->folders, priv->curfolder);
     if (elem != NULL)
         elem = g_list_next(elem);
@@ -446,7 +449,10 @@ monocle_thumbpane_prev_folder (MonocleThumbpane *self) {
     GList *elem;
     GtkTreeIter first;
     GtkTreeModel *filter;
-    
+
+    if (g_list_length(priv->folders) <= 1)
+        return;
+
     elem = g_list_nth(priv->folders, priv->curfolder);
     if (elem != NULL)
         elem = g_list_previous(elem);
@@ -471,10 +477,14 @@ void
 monocle_thumbpane_select_folder (MonocleThumbpane *self, gchar *folder) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     MonocleThumbpaneFolder folderdata;
+    gint folderidx;
     GtkTreeIter first;
     GtkTreeModel *filter;
 
-    if (get_folder_in_model(self, &folderdata, folder)) {
+    folderidx = get_folder_in_model(self, &folderdata, folder);
+    if (folderidx >= 0) {
+        priv->curfolder = folderidx;
+
         filter = gtk_tree_model_filter_new(priv->model, gtk_tree_row_reference_get_path(folderdata.rowref));
         gtk_tree_model_get_iter_first(filter, &first);
 
@@ -534,9 +544,9 @@ monocle_thumbpane_sort_order_descending (MonocleThumbpane *self) {
 
 /* takes a folder name as an argument
  * finds a MonocleThumbpaneFolder pointing to the node in the treemodel
- * returns true if it was found, false otherwise
+ * returns -1 if it was found, index of the folder otherwise
  */
-static gboolean
+static gint
 get_folder_in_model (MonocleThumbpane *self, MonocleThumbpaneFolder *out, gchar *folder) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
 
@@ -547,12 +557,12 @@ get_folder_in_model (MonocleThumbpane *self, MonocleThumbpaneFolder *out, gchar 
         MonocleThumbpaneFolder *folderdata = (MonocleThumbpaneFolder *)elem->data;
         if (!strcmp(folderdata->name, folder)) {
                 memcpy(out, folderdata, sizeof(MonocleThumbpaneFolder));
-                return TRUE;
+                return g_list_position(priv->folders, elem);
         }
         elem = g_list_next(elem);
     }
 
-    return FALSE;
+    return -1;
 }
 
 /* to be used in conjunction with the above function
@@ -628,10 +638,23 @@ cb_row_inserted (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, Mono
 }
 
 static void
+cb_row_child_toggled (GtkTreeModel *model, GtkTreePath *path, GtkTreeIter *iter, MonocleThumbpane *self) {
+    gboolean is_folder;
+    gchar *folder;
+
+    /* remove the folder that this iter should be pointing to */
+    gtk_tree_model_get(model, iter, COL_ISDIR, &is_folder, -1);
+    if (is_folder) {
+        if (gtk_tree_model_iter_n_children(model, iter) == 0) {
+            gtk_tree_model_get(model, iter, COL_FILEPATH, &folder, -1);
+            monocle_thumbpane_remove_folder(self, folder);
+        }
+    }
+}
+
+static void
 cb_row_deleted (GtkTreeModel *model, GtkTreePath *path, MonocleThumbpane *self) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
-    GtkTreeIter iter;
-
     priv->rowcount = priv->rowcount - 1;
     g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[ROWCOUNT_SIGNAL], 0, priv->rowcount);
 }

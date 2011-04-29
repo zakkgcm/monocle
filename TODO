@@ -5,26 +5,21 @@
 4. little details like file-opening and scrollbars [DONE]
 5. make code less hackish [KIND OF DONE]
 6. Add film-roll like image selector [DONE]
-7. Add [s]Zoom-in-to-fit and Zoom-out-to-fit[/s] shrink-to-fit and zoom-to-fit
+7. Add [s]Zoom-in-to-fit and Zoom-out-to-fit[/s] shrink-to-fit and zoom-to-fit and smart-fit
 8. Add a customizable background to be used for transparent images (checkerboard, black, white)
 9. Threading for things like scaling or thumbnail production [PARTIAL]
 11. pad thumbnails with vertical space (if need be)
 12. preloading
 13. faster image loading
 14. slideshow
-15. image sorting and orginization (ty ed ❤)
+15. image sorting and orginization (ty ed ❤) [PARTIAL]
 16. convert all the sprintfs to the (supposedly) more secure glib wrappers
 17. proper add/remove system for image list [DONE ish]
 18. file sorting in the list [DONE]
-19. multi-select for removal
-20. Convert to pig disgusting GtkUIManager with xml for menus
+19. multi-select for removal [DONE]
+20. Convert to pig disgusting GtkUIManager with xml for menus [DONE]
 21. keyboard shortcuts
 22. intelligently discard invalid images when found (ie if a file cannot be read, image cannot be loaded, etc)
 23. fix stupid compiler warnings
 24. thumbnail generation priority
 25. reduce memory usage on big images by drawing and scaling only visible portions
-
-/* These are "feature decisions", stuff to be thought about */
-1. remove button vs press delete key only
-2. hide thumbpane on single image load? option?
-3. aforementioned (22) "intelligent" discarding or plain file extension filtering
