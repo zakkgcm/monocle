@@ -175,20 +175,30 @@ monocle_thumbpane_add_image (MonocleThumbpane *self, gchar *filename) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     GdkPixbuf *thumb;
     GtkTreeStore *tree;
-    GtkTreeIter row, filterrow;
+    GtkTreeIter row, filterrow, folder;
+
+    MonocleThumbpaneFolder folderdata;
+    gchar *foldername;
+
+    foldername = g_path_get_dirname(filename);
+        if (get_folder_in_model(self, &folderdata, foldername) < 0)
+            create_folder_in_model(self, &folderdata, foldername);
+    
+    gtk_tree_model_get_iter(priv->model, &folder, gtk_tree_row_reference_get_path((GtkTreeRowReference *)folderdata.rowref));
 
     thumb = generate_thumbnail(filename);
 
     tree = GTK_TREE_STORE(priv->model);
-    gtk_tree_store_append(tree, &row, NULL);
+    gtk_tree_store_append(tree, &row, &folder);
     gtk_tree_store_set(tree, &row, COL_FILEPATH, filename, -1);
     gtk_tree_store_set(tree, &row, COL_THUMBNAIL, thumb, -1);
     gtk_tree_store_set(tree, &row, COL_ISDIR, FALSE, -1);
-
     
+    monocle_thumbpane_select_folder(self, foldername);
     gtk_tree_model_filter_convert_child_iter_to_iter(GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(priv->treeview)), &filterrow, &row);
     gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &filterrow);
 
+    g_free(foldername);
     g_object_unref(thumb);
 }
 

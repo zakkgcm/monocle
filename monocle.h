@@ -34,9 +34,14 @@ static const gchar *monocle_ui =
 "        <menu name='FileMenu' action='FileMenuAction'>"
 "            <menuitem name='Open'        action='OpenFile'/>"
 "            <menuitem name='Open Folder' action='OpenFolder'/>"
+"            <separator/>"
+"            <menuitem name='Next Folder' action='Next_Folder'/>"
+"            <menuitem name='Previous Folder' action='Prev_Folder'/>"
+"            <separator/>"
 "            <menuitem name='Remove Folder'      action='RemoveFolder'/>"
 "            <menuitem name='Remove Selected'      action='RemoveSelected'/>"
 "            <menuitem name='Clear List'           action='RemoveAll'/>"
+"            <separator/>"
 "            <menuitem name='Quit'        action='QuitAction'/>"
 "        </menu>"
 "        <menu name='EditMenu' action='EditMenuAction'>"
@@ -64,8 +69,6 @@ static const gchar *monocle_ui =
 "        <accelerator name='kp_add' action='Zoom_In_KPadd'/>"
 "        <accelerator name='equal' action='Zoom_In_Equal'/>"
 "        <accelerator name='kp_subtract' action='Zoom_Out_KPsubtract'/>"
-"        <accelerator name='leftarrow' action='Prev_Folder'/>"
-"        <accelerator name='rightarrow' action='Next_Folder'/>"   
 "</ui>";
 
 static GtkActionEntry main_entries[] = {
@@ -110,13 +113,13 @@ static GtkActionEntry main_entries[] = {
       G_CALLBACK(monocle_quit) },
 
     /* these SHOULD be just Right/Left but some widget is hogging those */
-    { "Next_Folder", NULL,
+    { "Next_Folder", GTK_STOCK_GO_FORWARD,
       "Next Folder", "<Ctrl>Right",
-      "Next Folder", G_CALLBACK(action_next_folder) },
+      "Select the Next Folder", G_CALLBACK(action_next_folder) },
     
-    { "Prev_Folder", NULL,
-      "Prev Folder", "<Ctrl>Left",
-      "Prev Folder", G_CALLBACK(action_prev_folder) },
+    { "Prev_Folder", GTK_STOCK_GO_BACK,
+      "Previous Folder", "<Ctrl>Left",
+      "Select the Previous Folder", G_CALLBACK(action_prev_folder) },
 };
 
 /* this is fucking confusing, use scale OR zoom not both */
