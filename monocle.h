@@ -23,6 +23,7 @@ static void action_zoom_in ();
 static void action_zoom_out ();
 static void action_next_folder ();
 static void action_prev_folder ();
+static void action_all_folder ();
 
 static void action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data);
 
@@ -37,6 +38,7 @@ static const gchar *monocle_ui =
 "            <separator/>"
 "            <menuitem name='Next Folder' action='Next_Folder'/>"
 "            <menuitem name='Previous Folder' action='Prev_Folder'/>"
+"            <menuitem name='All Folders' action='All_Folder'/>"
 "            <separator/>"
 "            <menuitem name='Remove Folder'      action='RemoveFolder'/>"
 "            <menuitem name='Remove Selected'      action='RemoveSelected'/>"
@@ -120,6 +122,10 @@ static GtkActionEntry main_entries[] = {
     { "Prev_Folder", GTK_STOCK_GO_BACK,
       "Previous Folder", "<Ctrl>Left",
       "Select the Previous Folder", G_CALLBACK(action_prev_folder) },
+    
+    { "All_Folder", GTK_STOCK_INDEX,
+      "All Folders", "<Ctrl><Shift>Up",
+      "View All Folders", G_CALLBACK(action_all_folder) },
 };
 
 /* this is fucking confusing, use scale OR zoom not both */

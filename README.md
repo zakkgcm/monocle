@@ -1,7 +1,7 @@
 #_Monocle_ views images.
-no silly editing tools no background setting things just view images.
-possible image management features (delete, organize, etc).
-use GTK for user interface for consistency.
+No silly editing tools no background setting things just view images.  
+Possible image management features (delete, organize, etc).  
+Use GTK for user interface for consistency.
 
 ## Goals
 * Asynchronosity, no gooey freezing up when loading or scaling big hueg image
@@ -24,6 +24,12 @@ use GTK for user interface for consistency.
     * edit config.mk to point to the proper mingw dir
     * `make`
 
+## Installing
+* lignucks
+    * `sudo make install`
+* windowez
+    * copy that exe
+
 ## Usage
     monocle [options] [file or folder] ...
     options are as follows:
@@ -31,7 +37,22 @@ use GTK for user interface for consistency.
         -R          | recursively loads folder if specified
         -v          | version info
         -h          | prints help message
+    
+example: `monocle -R ~/Photos/ ~/Downloads/coolimage1.jpg`
 
-files are added to a list of images to be viewed as oppose to viewing a folder or bunch at a time  
-delete removes images from the list, shift delete clears it  
-plus and minus to zoom
+Files and folders are added to a list of images to be viewed as oppose to viewing only one folder at a time.
+
+### Keyboard Shortcuts
+* Ctrl + O - Open (Add) Image(s)
+* Ctrl + Alt + O - Open (Add) Folder
+
+* Ctrl + Right/Left - Next/Previous folder
+* Ctrl + Shift + Up - View All images (together in one list)
+
+* Delete - remove image(s) from list
+* Ctrl + Delete - remove current folder from list
+* Shift + Delete - clear list
+
+* Plus/Minus - Zoom
+
+* Ctrl + Q - Quit

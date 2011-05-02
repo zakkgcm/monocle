@@ -29,3 +29,5 @@ f = fixed, r = reopened, n = no longer applies, f(?) = haven't run into it recen
 [f(?)] segfault occasionally probably because of threading
 [f(?)] while testing ran into deadlocks in gdb, couldn't reproduce outside of gdb though
 [f] zooming out leaves partial data of image from previous size (gdk_window_clear won't work due to bug #4)
+[ ] (empty) parent rows for folders are shown when in "view all" mode
+[ ] thumbpane is not sorted as a whole when in "view all" mode

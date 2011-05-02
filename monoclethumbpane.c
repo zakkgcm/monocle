@@ -127,7 +127,7 @@ monocle_thumbpane_init (MonocleThumbpane *self) {
     priv->model = GTK_TREE_MODEL(tree);
 
     priv->num_threads = 2;
-    priv->curfolder = 1;
+    priv->curfolder = -1;
     
     /* this WILL fail horribly if there is no mystery to be found */
     priv->default_thumb = g_file_test("./Itisamystery.gif", G_FILE_TEST_IS_REGULAR)
@@ -194,7 +194,7 @@ monocle_thumbpane_add_image (MonocleThumbpane *self, gchar *filename) {
     gtk_tree_store_set(tree, &row, COL_THUMBNAIL, thumb, -1);
     gtk_tree_store_set(tree, &row, COL_ISDIR, FALSE, -1);
     
-    monocle_thumbpane_select_folder(self, foldername);
+    monocle_thumbpane_view_folder(self, foldername);
     gtk_tree_model_filter_convert_child_iter_to_iter(GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(priv->treeview)), &filterrow, &row);
     gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &filterrow);
 
@@ -302,7 +302,7 @@ monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean re
         g_slist_free(filenames);
     }
 
-    monocle_thumbpane_select_folder(self, folder);
+    monocle_thumbpane_view_folder(self, folder);
 }
 
 /* remove functions take paths/iters in relation to the underlying model */
@@ -373,6 +373,8 @@ monocle_thumbpane_remove_folder (MonocleThumbpane *self, gchar *folder) {
     GtkTreeIter iter;
 
     if (folder == NULL) {
+        if (priv->curfolder < 0)
+            return;
         elem = g_list_nth(priv->folders, priv->curfolder);
         memcpy(&folderdata, (MonocleThumbpaneFolder *)elem->data, sizeof(MonocleThumbpaneFolder));
     } else {
@@ -431,14 +433,20 @@ monocle_thumbpane_next_folder (MonocleThumbpane *self) {
     
     if (g_list_length(priv->folders) <= 1)
         return;
-
-    elem = g_list_nth(priv->folders, priv->curfolder);
-    if (elem != NULL)
-        elem = g_list_next(elem);
-    if (elem == NULL)
+    
+    if (priv->curfolder >= 0) {
+        elem = g_list_nth(priv->folders, priv->curfolder);
+        if (elem != NULL)
+            elem = g_list_next(elem);
+        if (elem == NULL)
+            elem = g_list_first(priv->folders);
+        if (elem == NULL)
+            return;
+    } else {
         elem = g_list_first(priv->folders);
-    if (elem == NULL)
-        return;
+        if (elem == NULL)
+            return;
+    }
 
     priv->curfolder = g_list_position(priv->folders, elem);
 
@@ -463,14 +471,19 @@ monocle_thumbpane_prev_folder (MonocleThumbpane *self) {
     if (g_list_length(priv->folders) <= 1)
         return;
 
-    elem = g_list_nth(priv->folders, priv->curfolder);
-    if (elem != NULL)
-        elem = g_list_previous(elem);
-    if (elem == NULL)
-        elem = g_list_last(priv->folders);
-    if (elem == NULL)
-        return;
-    
+    if (priv->curfolder >= 0) { 
+        elem = g_list_nth(priv->folders, priv->curfolder);
+        if (elem != NULL)
+            elem = g_list_previous(elem);
+        if (elem == NULL)
+            elem = g_list_last(priv->folders);
+        if (elem == NULL)
+            return;
+    } else {
+        elem = g_list_first(priv->folders);
+        if (elem == NULL)
+            return;
+    }
     priv->curfolder = g_list_position(priv->folders, elem);
 
     folderdata = (MonocleThumbpaneFolder *)elem->data;
@@ -484,7 +497,7 @@ monocle_thumbpane_prev_folder (MonocleThumbpane *self) {
 }
 
 void
-monocle_thumbpane_select_folder (MonocleThumbpane *self, gchar *folder) {
+monocle_thumbpane_view_folder (MonocleThumbpane *self, gchar *folder) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     MonocleThumbpaneFolder folderdata;
     gint folderidx;
@@ -503,6 +516,26 @@ monocle_thumbpane_select_folder (MonocleThumbpane *self, gchar *folder) {
 
         g_object_unref(filter);
     }
+}
+
+/* FIXME: the parent "folder rows" are visible here, using the visible func of gtktreemodelfilter does not work
+ * only thought to fix it is to make a custom treemodelfilter or copy everything into a liststore */
+void
+monocle_thumbpane_view_all (MonocleThumbpane *self) {
+    MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
+    GtkTreeIter first;
+    GtkTreeModel *filter;
+
+    priv->curfolder = -1;
+
+    filter = gtk_tree_model_filter_new(priv->model, NULL);
+    gtk_tree_model_get_iter_first(filter, &first);
+
+    gtk_tree_view_set_model(priv->treeview, filter);
+    gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), &first);
+    gtk_tree_view_expand_all(priv->treeview);
+
+    g_object_unref(filter);
 }
 
 /* These seem redundant, maybe have an arg with some exposed ENUMS or something */

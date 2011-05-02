@@ -306,6 +306,10 @@ static void
 action_prev_folder () {
     monocle_thumbpane_prev_folder(thumbpane);
 }
+static void
+action_all_folder () {
+    monocle_thumbpane_view_all(thumbpane);
+}
 
 static void
 action_sort_menu (GtkRadioAction *action, GtkRadioAction *current, gpointer user_data) {
