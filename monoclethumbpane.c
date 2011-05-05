@@ -181,8 +181,8 @@ monocle_thumbpane_add_image (MonocleThumbpane *self, gchar *filename) {
     gchar *foldername;
 
     foldername = g_path_get_dirname(filename);
-        if (get_folder_in_model(self, &folderdata, foldername) < 0)
-            create_folder_in_model(self, &folderdata, foldername);
+    if (get_folder_in_model(self, &folderdata, foldername) < 0)
+        create_folder_in_model(self, &folderdata, foldername);
     
     gtk_tree_model_get_iter(priv->model, &folder, gtk_tree_row_reference_get_path((GtkTreeRowReference *)folderdata.rowref));
 
@@ -309,14 +309,16 @@ monocle_thumbpane_add_folder (MonocleThumbpane *self, gchar *folder, gboolean re
 void
 monocle_thumbpane_remove (MonocleThumbpane *self, GtkTreeIter *row) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
-    GtkTreeIter *nextrow = row; /* should I rather not declare this as a pointer? */
+    GtkTreeIter rowfilter;
     gboolean valid;
     
-    valid = gtk_tree_model_iter_next(GTK_TREE_MODEL(priv->model), nextrow);
-    gtk_tree_store_remove(GTK_TREE_STORE(priv->model), row);
+    valid = gtk_tree_store_remove(GTK_TREE_STORE(priv->model), row);
+    if (valid)
+        valid = gtk_tree_model_filter_convert_child_iter_to_iter(
+                    GTK_TREE_MODEL_FILTER(gtk_tree_view_get_model(priv->treeview)), &rowfilter, row);
 
     if(valid)
-        gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), nextrow);
+        gtk_tree_selection_select_iter(gtk_tree_view_get_selection(GTK_TREE_VIEW(priv->treeview)), row);
     else               
         g_signal_emit(G_OBJECT(self), monocle_thumbpane_signals[CHANGED_SIGNAL], 0, NULL);
 }
