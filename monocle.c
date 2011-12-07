@@ -503,7 +503,7 @@ int main (int argc, char *argv[]) {
                 gdk_threads_leave();
             } else {
                 gdk_threads_enter();
-                monocle_thumbpane_add_image(thumbpane, filearg); /* FIXME: use add_many instead */
+                monocle_thumbpane_add(thumbpane, filearg); /* FIXME: use add_many instead */
                 gdk_threads_leave();
             }
             g_free(filearg);

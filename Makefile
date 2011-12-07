@@ -4,7 +4,8 @@
 # configure scripts are for little girls
 include config.mk
 
-SRC = monocle.c monocleview.c monoclethumbpane.c\
+SRC = monocle.c monocleview.c \
+      monoclethumbpane.c monoclethumblist.c \
       utils/md5.c
 HEAD = $(wildcard *.h)
 OBJ = ${SRC:.c=.o}
@@ -36,7 +37,7 @@ monocle.exe: ${W32OBJ}
 	@echo ${W32CC} ${W32OBJ} -o $@
 	@${W32CC} ${W32OBJ} ${W32LDFLAGS} -o $@
 	@echo "stripping binary (don't peek)"
-	strip -s $@
+	#strip -s $@
 
 install: monocle
 	@echo "installing monocle to ${INSTALLDIR}"
