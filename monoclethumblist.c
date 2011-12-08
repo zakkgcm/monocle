@@ -403,12 +403,9 @@ monocle_thumblist_remove_current_folder (MonocleThumblist *monocle_thumblist, Mo
 
     /* point out to the next folder */
     next_elem = g_list_next(elem);
-    if (!next_elem)
-        next_elem = g_list_first(monocle_thumblist->folders);
-
     if (next_elem) {
         valid = TRUE;
-        out = (MonocleFolder *)next_elem->data; /* FIXME: becomes NULL after the function is over */
+        *out = (MonocleFolder *)next_elem->data;
     }
     
     /* actually free up the current folder's stuff */

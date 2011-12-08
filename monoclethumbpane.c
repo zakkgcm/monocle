@@ -269,7 +269,7 @@ void
 monocle_thumbpane_remove_folder (MonocleThumbpane *self, gchar *folder) {
     MonocleThumbpanePrivate *priv = MONOCLE_THUMBPANE_GET_PRIVATE(self);
     
-    MonocleFolder *next_folder;
+    MonocleFolder *next_folder = NULL;
     gboolean valid = FALSE;
 
     /* XXX: we remove and reapply the model to force updates 
@@ -277,7 +277,7 @@ monocle_thumbpane_remove_folder (MonocleThumbpane *self, gchar *folder) {
     gtk_tree_view_set_model(priv->treeview, NULL);
 
     if (!folder)
-        valid = monocle_thumblist_remove_current_folder(priv->thumblist, next_folder);
+        valid = monocle_thumblist_remove_current_folder(priv->thumblist, &next_folder);
 
     if (valid) /* FIXME/HELPME: next_folder is always NULL, idk why */
         monocle_thumblist_select_folder(priv->thumblist, next_folder);
