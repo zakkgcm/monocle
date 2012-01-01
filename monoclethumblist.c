@@ -55,9 +55,15 @@ static gboolean monocle_thumblist_iter_parent     (GtkTreeModel   *model,
                                                    GtkTreeIter    *child);
 static GObjectClass *parent_class = NULL;
 
+static void monocle_file_free (MonocleFile *file);
+
 /* thumbnailing prototypes */ 
-static void      thumbnail_thread    (MonocleFile *file);
-static GdkPixbuf *generate_thumbnail (gchar *filename);
+static void      thumbnail_thread_func    (MonocleThumblist *monocle_thumblist);
+static GdkPixbuf *generate_thumbnail      (gchar *filename);
+
+static void monocle_thumblist_thumbqueue_push (MonocleThumblist *monocle_thumblist, MonocleFile *file);
+static void monocle_thumblist_thumbqueue_remove (MonocleThumblist *monocle_thumblist, gchar *file);
+static void monocle_thumblist_thumbqueue_remove_many (MonocleThumblist *monocle_thumblist, GSList *files);
 
 static gchar *md5sum          (gchar *str);
 static gchar *encode_file_uri (gchar *str);
@@ -137,8 +143,8 @@ monocle_thumblist_init (MonocleThumblist *monocle_thumblist)
     monocle_thumblist->num_rows = 0;
     monocle_thumblist->stamp = g_random_int();
     
-    g_thread_pool_set_max_idle_time(100);
-    monocle_thumblist->thread_pool = g_thread_pool_new((GFunc)thumbnail_thread, NULL, 2, FALSE, NULL);
+    monocle_thumblist->thumb_mutex = g_mutex_new();
+    g_static_rw_lock_init(&monocle_thumblist->thumb_rwlock); 
 }
 
 MonocleThumblist *
@@ -189,6 +195,8 @@ monocle_thumblist_get_column_type (GtkTreeModel *model, gint index)
             break;
     }
 }
+
+/* TODO(?): wrap these functions with mutexes */
 
 static gboolean
 monocle_thumblist_get_iter (GtkTreeModel *model, GtkTreeIter *iter, GtkTreePath *path)
@@ -246,8 +254,9 @@ monocle_thumblist_get_value (GtkTreeModel *model, GtkTreeIter *iter,
     g_value_init (value, monocle_thumblist_get_column_type(GTK_TREE_MODEL(monocle_thumblist), column));
     
     file = (MonocleFile *)iter->user_data;
+    
+    g_static_rw_lock_reader_lock(&monocle_thumblist->thumb_rwlock);
     switch (column) {
-        /* TODO: implement g_value_set_type stuff */
         case MONOCLE_THUMBLIST_COL_FILENAME:
             g_value_set_string(value, file->name);
             break;
@@ -256,6 +265,7 @@ monocle_thumblist_get_value (GtkTreeModel *model, GtkTreeIter *iter,
             g_value_set_object(value, file->thumbnail);
             break;
     }
+    g_static_rw_lock_reader_unlock(&monocle_thumblist->thumb_rwlock);
 }
 
 static gboolean
@@ -355,17 +365,19 @@ monocle_thumblist_remove (MonocleThumblist *monocle_thumblist,
     g_return_val_if_fail(iter != NULL, FALSE);
     g_return_val_if_fail(iter->stamp == monocle_thumblist->stamp, FALSE);
 
+    g_mutex_lock(monocle_thumblist->thumb_mutex);
+
     /* gather data about next rows and paths before removing */
     next_row = *iter;
-    /*next_row->stamp = iter->stamp;
-    next_row->user_data = iter->user_data;*/
-    
+
     valid = monocle_thumblist_iter_next(GTK_TREE_MODEL(monocle_thumblist), &next_row);
     path = monocle_thumblist_get_path(GTK_TREE_MODEL(monocle_thumblist), iter);
 
     monocle_thumblist->current_folder->files = g_list_remove(
                                 monocle_thumblist->current_folder->files,
                                 (MonocleFile *)iter->user_data);
+
+    g_mutex_unlock(monocle_thumblist->thumb_mutex);
 
     gtk_tree_model_row_deleted(GTK_TREE_MODEL(monocle_thumblist), path);
     gtk_tree_path_free(path);
@@ -379,17 +391,23 @@ monocle_thumblist_remove (MonocleThumblist *monocle_thumblist,
 
 /* removes all entries belonging to the current folder
  * sets out to the next available folder or NULL */
-/* making this accept an address for out as is with the treemodel functions
- * causes weird behaivors after the folder is removed */
+/* FIXME: clean this up */
 gboolean
-monocle_thumblist_remove_current_folder (MonocleThumblist *monocle_thumblist, MonocleFolder *out)
+monocle_thumblist_remove_current_folder (MonocleThumblist *monocle_thumblist, MonocleFolder **out)
 {
     MonocleFolder *folder;
-    GList *elem, *next_elem;
+    GList *elem, *next_elem, *file_elem;
+    GSList *remove_list = NULL;
     gboolean valid = FALSE;
     gint length;
 
     GtkTreePath *path;
+
+    if (!monocle_thumblist->current_folder || !monocle_thumblist->folders)
+        return FALSE; /* no folders/current folder */
+
+    g_mutex_lock(monocle_thumblist->thumb_mutex);
+    g_static_rw_lock_writer_lock(&monocle_thumblist->thumb_rwlock);
 
     /* the next step will change current_folder */
     folder = monocle_thumblist->current_folder;
@@ -407,12 +425,30 @@ monocle_thumblist_remove_current_folder (MonocleThumblist *monocle_thumblist, Mo
         valid = TRUE;
         *out = (MonocleFolder *)next_elem->data;
     }
-    
+
+    /* remove the file entries from the thumbnail queue */
+    file_elem = g_list_first(folder->files);
+    while (file_elem != NULL) {
+        remove_list = g_slist_append(remove_list, ((MonocleFile *)file_elem->data)->name);
+        file_elem = g_list_next(file_elem);
+    }
+
+    monocle_thumblist_thumbqueue_remove_many(monocle_thumblist, remove_list);
+
     /* actually free up the current folder's stuff */
-    g_list_free_full(folder->files, g_free);
+    file_elem = g_list_first(folder->files);
+    while (file_elem != NULL) {
+        monocle_file_free(file_elem->data);
+        file_elem = g_list_next(file_elem);
+    }
+
+    //g_list_free_full(folder->files, (GDestroyNotify)monocle_file_free);
     g_free(elem->data); /* MonocleFolder */
     monocle_thumblist->folders = g_list_delete_link(monocle_thumblist->folders, elem);
-
+    
+    g_static_rw_lock_writer_unlock(&monocle_thumblist->thumb_rwlock);
+    g_mutex_unlock(monocle_thumblist->thumb_mutex);
+    
     return valid;
 }
 
@@ -421,6 +457,8 @@ void
 monocle_thumblist_clear (MonocleThumblist *monocle_thumblist)
 {
     GList *folder;
+
+    g_mutex_lock(monocle_thumblist->thumb_mutex);
 
     /* first pretend to delete the visible rows 
      * accomplished by selecting a NULL folder */
@@ -434,6 +472,8 @@ monocle_thumblist_clear (MonocleThumblist *monocle_thumblist)
         } while ((folder = g_list_next(folder)) != NULL);
     }
     g_list_free_full(monocle_thumblist->folders, g_free);
+
+    g_mutex_unlock(monocle_thumblist->thumb_mutex);
 }
 
 /* behaves similarly to gtk_list_store_append */
@@ -477,18 +517,21 @@ monocle_thumblist_append (MonocleThumblist *monocle_thumblist,
 
     monocle_thumblist_select_folder(monocle_thumblist, folder);
 
-    /* queue up to generate thumbnail */
-    g_thread_pool_push(monocle_thumblist->thread_pool, file, NULL);
-
     /* notify of our insertion */
     path = gtk_tree_path_new();
     gtk_tree_path_append_index(path, g_list_index(folder->files, file));
-    /*monocle_thumblist_get_iter(GTK_TREE_MODEL(monocle_thumblist), out, path);*/
     out->stamp = monocle_thumblist->stamp;
     out->user_data = file;
 
     gtk_tree_model_row_inserted (GTK_TREE_MODEL(monocle_thumblist), path, out);
     gtk_tree_path_free(path);
+    
+    /* queue up to generate thumbnail */
+    g_mutex_lock(monocle_thumblist->thumb_mutex);
+    g_static_rw_lock_writer_lock(&monocle_thumblist->thumb_rwlock);
+    monocle_thumblist_thumbqueue_push(monocle_thumblist, file);
+    g_static_rw_lock_writer_unlock(&monocle_thumblist->thumb_rwlock);
+    g_mutex_unlock(monocle_thumblist->thumb_mutex);
 }
 
 /* convenience (?) functions? */
@@ -512,6 +555,7 @@ monocle_thumblist_select_folder (MonocleThumblist *monocle_thumblist, MonocleFol
     }
 
     monocle_thumblist->current_folder = folder;
+    /* TODO: notify of new now-visible rows */
 }
 
 void monocle_thumblist_next_folder (MonocleThumblist *monocle_thumblist)
@@ -548,20 +592,146 @@ void monocle_thumblist_prev_folder (MonocleThumblist *monocle_thumblist)
     monocle_thumblist_select_folder(monocle_thumblist, folder);
 }
 
-
 static void
-thumbnail_thread (MonocleFile *file) {
-    GdkPixbuf *thumb;
-    
-    if (file->name == NULL)
-        return;
+monocle_file_free (MonocleFile *file) {
+    g_free(file->name);
+    g_object_unref(file->thumbnail);
+    g_free(file);
+    file->name = NULL;
+    file = NULL;
+}
 
-    thumb = generate_thumbnail(file->name);
-    if (thumb != NULL) {
-        file->thumbnail = thumb;
+/* Thumbnail Generation */
+
+/* the monocle thumbqueue is basically a bastardized GList
+ * items are "pushed" onto the end
+ * then "poppped" when a thumbnail is to be generated
+ * items are removed along with their counterparts in the thumblist
+ *
+ * the following thumbqueue functions do NOT accqurie a mutex lock
+ * they must be wrapped with g_mutex_lock/unlock() calls */
+
+/* TODO: use more than one thread */
+static void
+monocle_thumblist_thumbqueue_push (MonocleThumblist *monocle_thumblist, MonocleFile *file)
+{
+    /* create the thumbnailing thread if needed */
+    if (monocle_thumblist->thumb_thread == NULL)
+        monocle_thumblist->thumb_thread = g_thread_create ((GThreadFunc)thumbnail_thread_func, monocle_thumblist, FALSE, NULL);
+
+    monocle_thumblist->thumb_queue = g_list_append(monocle_thumblist->thumb_queue, file);
+}
+
+/* takes a string to remove from the queue */
+static void
+monocle_thumblist_thumbqueue_remove (MonocleThumblist *monocle_thumblist, gchar *file)
+{
+    GList *elem;
+
+    elem = g_list_first(monocle_thumblist->thumb_queue);
+    while (elem != NULL) {
+        if (!strcmp (((MonocleFile *)elem->data)->name, file)) {
+            monocle_thumblist->thumb_queue = g_list_delete_link(monocle_thumblist->thumb_queue, elem);
+            break;
+        }
+        elem = g_list_next(elem);
     }
 }
 
+/* takes a GSist of strings to remove from the queue */
+static void
+monocle_thumblist_thumbqueue_remove_many (MonocleThumblist *monocle_thumblist, GSList *files)
+{
+    GList *elem, *next_elem;
+
+    /* loop through each element in the thumb queue */
+    elem = g_list_first(monocle_thumblist->thumb_queue);
+    while (elem != NULL) {
+        MonocleFile *file = (MonocleFile *)elem->data;
+        next_elem = g_list_next(elem); /* needed if elem is removed */
+
+        /* loop through each of our needles */
+        GSList *nelem = files;
+        while (nelem != NULL) {
+            if (!strcmp (file->name, (gchar *)nelem->data)) {
+                monocle_thumblist->thumb_queue = g_list_delete_link(monocle_thumblist->thumb_queue, elem);
+                break;
+            }
+            nelem = g_slist_next(nelem);
+        }
+
+        elem = next_elem;
+    }
+}
+
+static void
+thumbnail_thread_func (MonocleThumblist *monocle_thumblist) {
+    gchar *file;
+    GdkPixbuf *thumb;
+    GList *elem, *queue_elem;
+
+    while (TRUE)
+    {
+        g_static_rw_lock_reader_lock (&monocle_thumblist->thumb_rwlock);
+        /* XXX: this is all really hackish */
+        /* "pop" the first element from the queue */
+        if (monocle_thumblist->thumb_queue == NULL || g_list_first(monocle_thumblist->thumb_queue) == NULL) {
+            g_static_rw_lock_reader_unlock (&monocle_thumblist->thumb_rwlock);
+            continue; /* TODO gcond */
+        }
+
+        elem = g_list_first(monocle_thumblist->thumb_queue);
+        monocle_thumblist->thumb_queue = g_list_remove_link(monocle_thumblist->thumb_queue, elem);
+        file = g_strdup(((MonocleFile *)elem->data)->name);
+
+        thumb = generate_thumbnail(file);
+        
+        if (thumb != NULL) {
+            /* if thumb_mutex is locked, the main thread is waiting to modify stuff */
+            if (g_mutex_trylock(monocle_thumblist->thumb_mutex)) {
+                gint index;
+                GtkTreePath *path;
+                GtkTreeIter iter;
+
+                g_static_rw_lock_reader_unlock (&monocle_thumblist->thumb_rwlock);
+                g_static_rw_lock_writer_lock (&monocle_thumblist->thumb_rwlock);
+                
+                ((MonocleFile *)elem->data)->thumbnail = g_object_ref(thumb);
+           
+                /* notify of our modifications if necessary */
+                if (monocle_thumblist->current_folder != NULL) {
+                    index = g_list_index(monocle_thumblist->current_folder->files, file);
+                    if (index >= 0) {
+                        path = gtk_tree_path_new();
+                        gtk_tree_path_append_index(path, index);
+                        
+                        monocle_thumblist_get_iter(GTK_TREE_MODEL(monocle_thumblist), &iter, path);
+                        
+                        gtk_tree_model_row_changed (GTK_TREE_MODEL(monocle_thumblist), path, &iter);
+                        gtk_tree_path_free(path);
+                    }
+                }
+
+                g_static_rw_lock_writer_unlock (&monocle_thumblist->thumb_rwlock);
+                g_mutex_unlock(monocle_thumblist->thumb_mutex);
+
+                g_object_unref(thumb);
+            } else {
+                /* unfortunately the main thread beat us to the thumbnail lock 
+                 * this thumbnail will need to be regenerated (wasteful I know) */
+                monocle_thumblist_thumbqueue_push(monocle_thumblist, (MonocleFile *)elem->data);
+                g_static_rw_lock_reader_unlock (&monocle_thumblist->thumb_rwlock);
+            }
+        } else {
+            g_static_rw_lock_reader_unlock (&monocle_thumblist->thumb_rwlock);
+        }
+
+        g_free(file);
+
+    }
+}
+
+/* takes a pointer to a MonocleFile to make a thumbnail for */
 /* returns a NULL if one can't be made */
 static GdkPixbuf
 *generate_thumbnail (gchar *filename) {

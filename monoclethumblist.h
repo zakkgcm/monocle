@@ -43,8 +43,14 @@ typedef struct _MonocleThumblistClass MonocleThumblistClass;
 struct _MonocleThumblist
 {
     GObject parent;
-    
-    GThreadPool *thread_pool;
+   
+    /* FIXME: put these in a priv */
+    GMutex          *thumb_mutex; /* XXX: used to prevent race conditions while preserving speed */
+    GStaticRWLock   thumb_rwlock;
+    //GAsyncQueue *thumb_queue;
+    GList           *thumb_queue;
+    GThread         *thumb_thread;
+    //GThreadPool *thread_pool;
 
     MonocleFolder *root_folder;     /* root of our internal file heirarchy */
     GList         *folders;         /* all of the folders, just for figuring out interface */
@@ -70,7 +76,7 @@ MonocleThumblist *monocle_thumblist_new ();
 void monocle_thumblist_append (MonocleThumblist *monocle_thumblist, GtkTreeIter *out, gchar *filename);
 
 gboolean monocle_thumblist_remove                (MonocleThumblist *monocle_thumblist, GtkTreeIter *iter);
-gboolean monocle_thumblist_remove_current_folder (MonocleThumblist *monocle_thumblist, MonocleFolder *out);
+gboolean monocle_thumblist_remove_current_folder (MonocleThumblist *monocle_thumblist, MonocleFolder **out);
 void     monocle_thumblist_clear                 (MonocleThumblist *monocle_thumblist);
 
 void monocle_thumblist_select_folder (MonocleThumblist *monocle_thumblist, MonocleFolder *folder);
