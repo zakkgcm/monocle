@@ -367,6 +367,7 @@ monocle_thumblist_remove (MonocleThumblist *monocle_thumblist,
     g_return_val_if_fail(iter->stamp == monocle_thumblist->stamp, FALSE);
 
     g_mutex_lock(monocle_thumblist->thumb_mutex);
+    g_static_rw_lock_writer_lock(&monocle_thumblist->thumb_rwlock);
 
     /* gather data about next rows and paths before removing */
     next_row = *iter;
@@ -378,6 +379,7 @@ monocle_thumblist_remove (MonocleThumblist *monocle_thumblist,
                                 monocle_thumblist->current_folder->files,
                                 (MonocleFile *)iter->user_data);
 
+    g_static_rw_lock_writer_unlock(&monocle_thumblist->thumb_rwlock);
     g_mutex_unlock(monocle_thumblist->thumb_mutex);
 
     gtk_tree_model_row_deleted(GTK_TREE_MODEL(monocle_thumblist), path);
@@ -443,7 +445,6 @@ monocle_thumblist_remove_current_folder (MonocleThumblist *monocle_thumblist, Mo
         file_elem = g_list_next(file_elem);
     }
 
-    //g_list_free_full(folder->files, (GDestroyNotify)monocle_file_free);
     g_free(elem->data); /* MonocleFolder */
     monocle_thumblist->folders = g_list_delete_link(monocle_thumblist->folders, elem);
     
@@ -679,7 +680,8 @@ thumbnail_thread_func (MonocleThumblist *monocle_thumblist) {
     {
 
         g_static_rw_lock_reader_lock (&monocle_thumblist->thumb_rwlock);
-        /* XXX: this is all really hackish */
+        /* XXX: this is all really hackish, but it seems like the only way to make the wacky
+         * folder system play nice with threading besides needing to do a full search through every loaded file/folder */
         /* "pop" the first element from the queue */
         if (monocle_thumblist->thumb_queue == NULL || g_list_first(monocle_thumblist->thumb_queue) == NULL) {
             g_static_rw_lock_reader_unlock (&monocle_thumblist->thumb_rwlock);
@@ -703,6 +705,7 @@ thumbnail_thread_func (MonocleThumblist *monocle_thumblist) {
                 GtkTreePath *path;
                 GtkTreeIter iter;
 
+                /* the following is OKAY since we've locked the thumb_mutex */
                 g_static_rw_lock_reader_unlock (&monocle_thumblist->thumb_rwlock);
                 g_static_rw_lock_writer_lock (&monocle_thumblist->thumb_rwlock);
                 

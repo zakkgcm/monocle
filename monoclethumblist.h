@@ -48,10 +48,8 @@ struct _MonocleThumblist
     GMutex          *thumb_mutex; /* XXX: used to prevent race conditions while preserving speed */
     GStaticRWLock   thumb_rwlock;
     GCond           *thumb_cond;
-    //GAsyncQueue *thumb_queue;
     GList           *thumb_queue;
     GThread         *thumb_thread;
-    //GThreadPool *thread_pool;
 
     MonocleFolder *root_folder;     /* root of our internal file heirarchy */
     GList         *folders;         /* all of the folders, just for figuring out interface */
