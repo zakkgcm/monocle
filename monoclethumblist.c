@@ -145,6 +145,7 @@ monocle_thumblist_init (MonocleThumblist *monocle_thumblist)
     
     monocle_thumblist->thumb_mutex = g_mutex_new();
     g_static_rw_lock_init(&monocle_thumblist->thumb_rwlock); 
+    monocle_thumblist->thumb_cond = g_cond_new();
 }
 
 MonocleThumblist *
@@ -472,6 +473,7 @@ monocle_thumblist_clear (MonocleThumblist *monocle_thumblist)
         } while ((folder = g_list_next(folder)) != NULL);
     }
     g_list_free_full(monocle_thumblist->folders, g_free);
+    monocle_thumblist->folders = NULL;
 
     g_mutex_unlock(monocle_thumblist->thumb_mutex);
 }
@@ -620,6 +622,8 @@ monocle_thumblist_thumbqueue_push (MonocleThumblist *monocle_thumblist, MonocleF
         monocle_thumblist->thumb_thread = g_thread_create ((GThreadFunc)thumbnail_thread_func, monocle_thumblist, FALSE, NULL);
 
     monocle_thumblist->thumb_queue = g_list_append(monocle_thumblist->thumb_queue, file);
+
+    g_cond_signal(monocle_thumblist->thumb_cond);
 }
 
 /* takes a string to remove from the queue */
@@ -670,16 +674,22 @@ thumbnail_thread_func (MonocleThumblist *monocle_thumblist) {
     GdkPixbuf *thumb;
     GList *elem, *queue_elem;
 
+    GMutex *wait_mutex = g_mutex_new ();
     while (TRUE)
     {
+
         g_static_rw_lock_reader_lock (&monocle_thumblist->thumb_rwlock);
         /* XXX: this is all really hackish */
         /* "pop" the first element from the queue */
         if (monocle_thumblist->thumb_queue == NULL || g_list_first(monocle_thumblist->thumb_queue) == NULL) {
             g_static_rw_lock_reader_unlock (&monocle_thumblist->thumb_rwlock);
-            continue; /* TODO gcond */
-        }
 
+            g_mutex_lock (wait_mutex);
+            g_cond_wait (monocle_thumblist->thumb_cond, wait_mutex);
+            g_mutex_unlock (wait_mutex);
+            continue;
+        }
+        
         elem = g_list_first(monocle_thumblist->thumb_queue);
         monocle_thumblist->thumb_queue = g_list_remove_link(monocle_thumblist->thumb_queue, elem);
         file = g_strdup(((MonocleFile *)elem->data)->name);

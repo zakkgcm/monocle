@@ -47,6 +47,7 @@ struct _MonocleThumblist
     /* FIXME: put these in a priv */
     GMutex          *thumb_mutex; /* XXX: used to prevent race conditions while preserving speed */
     GStaticRWLock   thumb_rwlock;
+    GCond           *thumb_cond;
     //GAsyncQueue *thumb_queue;
     GList           *thumb_queue;
     GThread         *thumb_thread;
