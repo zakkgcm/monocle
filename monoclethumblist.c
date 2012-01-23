@@ -713,7 +713,7 @@ thumbnail_thread_func (MonocleThumblist *monocle_thumblist) {
            
                 /* notify of our modifications if necessary */
                 if (monocle_thumblist->current_folder != NULL) {
-                    index = g_list_index(monocle_thumblist->current_folder->files, file);
+                    index = g_list_index(monocle_thumblist->current_folder->files, elem->data);
                     if (index >= 0) {
                         path = gtk_tree_path_new();
                         gtk_tree_path_append_index(path, index);
